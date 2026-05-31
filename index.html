@@ -1580,20 +1580,21 @@
     btn.disabled = true;
     btn.textContent = currentLang === 'th' ? 'กำลังอัปโหลด…' : 'Uploading…';
 
-    const formData = new FormData();
-    formData.append('photo', file);
-
     try {
-      const res = await fetch('/api/guest-photos', { method: 'POST', body: formData });
-      const data = await res.json();
-      if (data.success) {
-        showLiveToast(currentLang === 'th' ? 'อัปโหลดสำเร็จ! รูปของคุณปรากฏแล้ว ♡' : 'Photo uploaded! ♡');
-        loadLivePhotos();
-      } else {
-        showLiveToast(data.error || (currentLang === 'th' ? 'อัปโหลดไม่สำเร็จ' : 'Upload failed'));
-      }
-    } catch {
-      showLiveToast(currentLang === 'th' ? 'เกิดข้อผิดพลาด กรุณาลองใหม่' : 'Error, please try again');
+      const { upload } = await import('https://esm.sh/@vercel/blob@0.27.0/client');
+      const ext = (file.name.split('.').pop() || 'jpg').toLowerCase();
+      const rand = Math.random().toString(36).slice(2, 10);
+      const pathname = `guest/${Date.now()}-${rand}.${ext}`;
+      await upload(pathname, file, {
+        access: 'public',
+        handleUploadUrl: '/api/blob/upload',
+        contentType: file.type || 'image/jpeg',
+      });
+      showLiveToast(currentLang === 'th' ? 'อัปโหลดสำเร็จ! รูปของคุณปรากฏแล้ว ♡' : 'Photo uploaded! ♡');
+      loadLivePhotos();
+    } catch (err) {
+      console.error(err);
+      showLiveToast(err?.message || (currentLang === 'th' ? 'เกิดข้อผิดพลาด กรุณาลองใหม่' : 'Error, please try again'));
     } finally {
       btn.disabled = false;
       btn.textContent = currentLang === 'th' ? 'เพิ่มรูปของคุณ ♡' : 'Add Your Photo ♡';

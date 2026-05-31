@@ -584,26 +584,40 @@
 
   async function uploadFiles(files) {
     if (!files || files.length === 0) return;
-    const formData = new FormData();
-    Array.from(files).forEach(f => formData.append('photos', f));
+    const list = Array.from(files);
 
     const progress = document.getElementById('uploadProgress');
     const bar = document.getElementById('uploadProgressBar');
     progress.style.display = 'block';
-    bar.style.width = '30%';
+    bar.style.width = '0%';
 
     try {
-      const res = await fetch(`/api/photos?secret=${SECRET}`, { method: 'POST', body: formData });
-      bar.style.width = '100%';
-      const data = await res.json();
-      if (data.success) {
-        showToast(`Upload สำเร็จ ${data.files.length} ไฟล์`);
-        loadPhotos();
-      } else {
-        showToast('Upload ล้มเหลว: ' + (data.error || ''));
+      const { upload } = await import('https://esm.sh/@vercel/blob@0.27.0/client');
+      let done = 0;
+      let ok = 0;
+      for (const f of list) {
+        try {
+          const ext = (f.name.split('.').pop() || 'jpg').toLowerCase();
+          const rand = Math.random().toString(36).slice(2, 10);
+          const pathname = `gallery/${Date.now()}-${rand}.${ext}`;
+          await upload(pathname, f, {
+            access: 'public',
+            handleUploadUrl: '/api/blob/upload',
+            contentType: f.type || 'image/jpeg',
+            clientPayload: JSON.stringify({ secret: SECRET }),
+          });
+          ok++;
+        } catch (err) {
+          console.error('upload failed for', f.name, err);
+        }
+        done++;
+        bar.style.width = `${Math.round((done / list.length) * 100)}%`;
       }
-    } catch {
-      showToast('Upload ล้มเหลว');
+      showToast(`Upload สำเร็จ ${ok}/${list.length} ไฟล์`);
+      loadPhotos();
+    } catch (err) {
+      console.error(err);
+      showToast('Upload ล้มเหลว: ' + (err?.message || ''));
     } finally {
       setTimeout(() => { progress.style.display = 'none'; bar.style.width = '0%'; }, 1000);
       fileInput.value = '';
