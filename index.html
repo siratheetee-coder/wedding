@@ -3,14 +3,14 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Wedding Invitation — Pumpim & Auto</title>
+  <title>Wedding Invitation — Madchimapon & Sirathee</title>
 
   <!-- Favicon -->
-  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>💍</text></svg>" />
+  <link rel="icon" type="image/png" href="assets/logo.png" />
 
   <!-- Open Graph (LINE / Facebook sharing) -->
   <meta property="og:type"        content="website" />
-  <meta property="og:title"       content="Pumpim &amp; Auto — Wedding Invitation" />
+  <meta property="og:title"       content="Madchimapon &amp; Sirathee — Wedding Invitation" />
   <meta property="og:description" content="ขอเชิญร่วมแสดงความยินดีและเป็นสักขีพยานในงานสมรส 20 ธันวาคม 2569 โรงแรมตักสิลา มหาสารคาม" />
   <meta property="og:image"       content="assets/hero.jpg" />
   <meta name="description"        content="ขอเชิญร่วมแสดงความยินดีและเป็นสักขีพยานในงานสมรส 20 ธันวาคม 2569 โรงแรมตักสิลา มหาสารคาม" />
@@ -59,13 +59,23 @@
       border-bottom: 1px solid var(--border);
     }
     .nav-logo {
-      font-family: 'Playfair Display', serif;
-      font-size: 1.15rem;
-      letter-spacing: 0.08em;
-      color: var(--white);
-      transition: color 0.4s;
+      display: flex;
+      align-items: center;
     }
-    nav.scrolled .nav-logo { color: var(--accent); }
+    .nav-logo img {
+      height: 88px;
+      width: auto;
+      display: block;
+      filter:
+        drop-shadow(0 0 0.5px rgba(255,255,255,1))
+        drop-shadow(0 0 0.5px rgba(255,255,255,1))
+        drop-shadow(0 0 1px rgba(255,255,255,1))
+        drop-shadow(0 0 1px rgba(255,255,255,1));
+      transition: filter 0.4s;
+    }
+    nav.scrolled .nav-logo img {
+      filter: none;
+    }
     .nav-links { display: flex; align-items: center; gap: 32px; list-style: none; }
     .nav-links a {
       font-size: 0.88rem;
@@ -924,7 +934,7 @@
 
 <!-- NAV -->
 <nav id="mainNav">
-  <div class="nav-logo">P & A</div>
+  <div class="nav-logo"><img src="assets/logo.png" alt="Madchimapon & Sirathee" /></div>
   <button class="nav-hamburger" id="hamburger" aria-label="menu">
     <span></span><span></span><span></span>
   </button>
@@ -945,7 +955,7 @@
   <div class="hero-content">
     <div class="hero-date">20 December 2026</div>
     <p class="hero-subtitle">We're Getting Married</p>
-    <h1 class="hero-title">Pumpim &amp; Auto</h1>
+    <h1 class="hero-title">Madchimapon &amp; Sirathee</h1>
     <div class="countdown" id="countdown">
       <div class="cd-unit"><span class="cd-val" id="cdDays">--</span><span class="cd-label" data-th="วัน" data-en="Days">วัน</span></div>
       <div class="cd-sep">:</div>
@@ -966,7 +976,7 @@
 <section id="story">
   <div class="story-container">
     <div class="story-image-wrap fade-up">
-      <img class="story-photo" src="assets/story.jpg" alt="Pumpim & Auto" loading="lazy" />
+      <img class="story-photo" src="assets/story.jpg" alt="Madchimapon & Sirathee" loading="lazy" />
       <div class="story-frame"></div>
     </div>
     <div class="story-text fade-up">
@@ -1092,7 +1102,7 @@
 
 <!-- FOOTER -->
 <footer>
-  <div class="footer-title">Pumpim &amp; Auto</div>
+  <div class="footer-title">Madchimapon &amp; Sirathee</div>
   <div class="footer-date">20 · 12 · 2026</div>
   <div class="footer-divider"></div>
   <div class="footer-info">
