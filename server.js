@@ -1,0 +1,231 @@
+const express = require('express');
+const multer = require('multer');
+const cors = require('cors');
+const path = require('path');
+const fs = require('fs');
+const { randomUUID } = require('crypto');
+
+const app = express();
+const PORT = process.env.PORT || 3001;
+const ADMIN_SECRET = process.env.ADMIN_SECRET || 'wedding2025';
+
+const DATA_FILE = path.join(__dirname, 'data', 'registrations.json');
+const LIKES_FILE = path.join(__dirname, 'data', 'likes.json');
+const UPLOADS_DIR = path.join(__dirname, 'uploads');
+const GUEST_UPLOADS_DIR = path.join(__dirname, 'uploads', 'guest');
+
+if (!fs.existsSync(UPLOADS_DIR)) fs.mkdirSync(UPLOADS_DIR, { recursive: true });
+if (!fs.existsSync(GUEST_UPLOADS_DIR)) fs.mkdirSync(GUEST_UPLOADS_DIR, { recursive: true });
+if (!fs.existsSync(path.join(__dirname, 'data'))) fs.mkdirSync(path.join(__dirname, 'data'), { recursive: true });
+if (!fs.existsSync(DATA_FILE)) fs.writeFileSync(DATA_FILE, '[]', 'utf8');
+if (!fs.existsSync(LIKES_FILE)) fs.writeFileSync(LIKES_FILE, '{}', 'utf8');
+
+const imageFilter = (req, file, cb) => {
+  const allowed = ['.jpg', '.jpeg', '.png', '.webp', '.gif'];
+  cb(null, allowed.includes(path.extname(file.originalname).toLowerCase()));
+};
+
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => cb(null, UPLOADS_DIR),
+  filename: (req, file, cb) => {
+    const ext = path.extname(file.originalname).toLowerCase();
+    cb(null, `${Date.now()}-${randomUUID().slice(0, 8)}${ext}`);
+  },
+});
+const upload = multer({ storage, limits: { fileSize: 10 * 1024 * 1024 }, fileFilter: imageFilter });
+
+const guestStorage = multer.diskStorage({
+  destination: (req, file, cb) => cb(null, GUEST_UPLOADS_DIR),
+  filename: (req, file, cb) => {
+    const ext = path.extname(file.originalname).toLowerCase();
+    cb(null, `${Date.now()}-${randomUUID().slice(0, 8)}${ext}`);
+  },
+});
+const uploadGuest = multer({ storage: guestStorage, limits: { fileSize: 10 * 1024 * 1024 }, fileFilter: imageFilter });
+
+app.use(cors());
+app.use(express.json());
+app.use(express.static(__dirname));
+app.use('/uploads', express.static(UPLOADS_DIR));
+
+// Simple in-memory rate limiter for guest photo uploads (5 per IP per hour)
+const rateLimitMap = new Map();
+function guestPhotoRateLimit(req, res, next) {
+  const ip = req.ip || req.socket.remoteAddress || 'unknown';
+  const now = Date.now();
+  const window = 60 * 60 * 1000; // 1 hour
+  const max = 5;
+  const record = rateLimitMap.get(ip) || { count: 0, start: now };
+  if (now - record.start > window) { record.count = 0; record.start = now; }
+  if (record.count >= max) {
+    return res.status(429).json({ error: 'อัปโหลดได้สูงสุด 5 รูปต่อชั่วโมง' });
+  }
+  record.count++;
+  rateLimitMap.set(ip, record);
+  next();
+}
+
+function readRegistrations() {
+  try {
+    return JSON.parse(fs.readFileSync(DATA_FILE, 'utf8'));
+  } catch {
+    return [];
+  }
+}
+
+function writeRegistrations(data) {
+  fs.writeFileSync(DATA_FILE, JSON.stringify(data, null, 2), 'utf8');
+}
+
+function readLikes() {
+  try {
+    return JSON.parse(fs.readFileSync(LIKES_FILE, 'utf8'));
+  } catch {
+    return {};
+  }
+}
+
+function writeLikes(data) {
+  fs.writeFileSync(LIKES_FILE, JSON.stringify(data, null, 2), 'utf8');
+}
+
+app.post('/api/register', (req, res) => {
+  const { name, phone, guests, guestName, message } = req.body;
+  if (!name || name.trim().length < 2) {
+    return res.status(400).json({ error: 'กรุณากรอกชื่อ-นามสกุล' });
+  }
+  const registrations = readRegistrations();
+  // Duplicate check by phone (if provided)
+  const cleanPhone = (phone || '').trim().replace(/\D/g, '');
+  if (cleanPhone.length >= 9) {
+    const dup = registrations.find(r => r.phone.replace(/\D/g, '') === cleanPhone);
+    if (dup) {
+      return res.status(409).json({ error: `เบอร์นี้ได้ลงทะเบียนแล้ว (${dup.name}) หากต้องการแก้ไข กรุณาติดต่อเจ้าบ่าวสาว` });
+    }
+  }
+  const entry = {
+    id: randomUUID(),
+    name: name.trim(),
+    phone: (phone || '').trim(),
+    guests: parseInt(guests) || 0,
+    guestName: (guestName || '').trim(),
+    message: (message || '').trim(),
+    createdAt: new Date().toISOString(),
+  };
+  registrations.push(entry);
+  writeRegistrations(registrations);
+  res.json({ success: true, id: entry.id });
+});
+
+app.get('/api/registrations', (req, res) => {
+  if (req.query.secret !== ADMIN_SECRET) {
+    return res.status(401).json({ error: 'Unauthorized' });
+  }
+  const registrations = readRegistrations();
+  const totalGuests = registrations.reduce((sum, r) => sum + r.guests + 1, 0);
+  res.json({ registrations, totalGuests, count: registrations.length });
+});
+
+app.delete('/api/registrations/:id', (req, res) => {
+  if (req.query.secret !== ADMIN_SECRET) {
+    return res.status(401).json({ error: 'Unauthorized' });
+  }
+  const registrations = readRegistrations().filter(r => r.id !== req.params.id);
+  writeRegistrations(registrations);
+  res.json({ success: true });
+});
+
+app.post('/api/photos', upload.array('photos', 50), (req, res) => {
+  if (req.query.secret !== ADMIN_SECRET) {
+    req.files?.forEach(f => fs.unlinkSync(f.path));
+    return res.status(401).json({ error: 'Unauthorized' });
+  }
+  const uploaded = (req.files || []).map(f => `/uploads/${f.filename}`);
+  res.json({ success: true, files: uploaded });
+});
+
+app.get('/api/photos', (req, res) => {
+  try {
+    const files = fs.readdirSync(UPLOADS_DIR)
+      .filter(f => /\.(jpg|jpeg|png|webp|gif)$/i.test(f))
+      .sort((a, b) => {
+        const ta = fs.statSync(path.join(UPLOADS_DIR, a)).mtimeMs;
+        const tb = fs.statSync(path.join(UPLOADS_DIR, b)).mtimeMs;
+        return tb - ta;
+      })
+      .map(f => `/uploads/${f}`);
+    const likes = readLikes();
+    res.json({ photos: files, likes });
+  } catch {
+    res.json({ photos: [], likes: {} });
+  }
+});
+
+// Toggle a like for a photo. Body: { filename, action: 'like' | 'unlike' }
+app.post('/api/likes', (req, res) => {
+  const { filename, action } = req.body;
+  if (!filename || typeof filename !== 'string') {
+    return res.status(400).json({ error: 'filename required' });
+  }
+  const key = path.basename(filename);
+  if (!/\.(jpg|jpeg|png|webp|gif)$/i.test(key) || !fs.existsSync(path.join(UPLOADS_DIR, key))) {
+    return res.status(404).json({ error: 'photo not found' });
+  }
+  const likes = readLikes();
+  const current = likes[key] || 0;
+  likes[key] = action === 'unlike' ? Math.max(0, current - 1) : current + 1;
+  writeLikes(likes);
+  res.json({ success: true, count: likes[key] });
+});
+
+app.delete('/api/photos/:filename', (req, res) => {
+  if (req.query.secret !== ADMIN_SECRET) {
+    return res.status(401).json({ error: 'Unauthorized' });
+  }
+  const filepath = path.join(UPLOADS_DIR, req.params.filename);
+  if (fs.existsSync(filepath)) fs.unlinkSync(filepath);
+  const likes = readLikes();
+  if (likes[req.params.filename] !== undefined) {
+    delete likes[req.params.filename];
+    writeLikes(likes);
+  }
+  res.json({ success: true });
+});
+
+// Guest (public) photo upload
+app.get('/api/guest-photos', (req, res) => {
+  try {
+    const files = fs.readdirSync(GUEST_UPLOADS_DIR)
+      .filter(f => /\.(jpg|jpeg|png|webp|gif)$/i.test(f))
+      .sort((a, b) => {
+        const ta = fs.statSync(path.join(GUEST_UPLOADS_DIR, a)).mtimeMs;
+        const tb = fs.statSync(path.join(GUEST_UPLOADS_DIR, b)).mtimeMs;
+        return tb - ta;
+      })
+      .map(f => `/uploads/guest/${f}`);
+    res.json({ photos: files });
+  } catch {
+    res.json({ photos: [] });
+  }
+});
+
+app.post('/api/guest-photos', guestPhotoRateLimit, uploadGuest.single('photo'), (req, res) => {
+  if (!req.file) {
+    return res.status(400).json({ error: 'กรุณาเลือกรูปภาพ' });
+  }
+  res.json({ success: true, file: `/uploads/guest/${req.file.filename}` });
+});
+
+app.delete('/api/guest-photos/:filename', (req, res) => {
+  if (req.query.secret !== ADMIN_SECRET) {
+    return res.status(401).json({ error: 'Unauthorized' });
+  }
+  const filepath = path.join(GUEST_UPLOADS_DIR, req.params.filename);
+  if (fs.existsSync(filepath)) fs.unlinkSync(filepath);
+  res.json({ success: true });
+});
+
+app.listen(PORT, () => {
+  console.log(`Wedding registration server running at http://localhost:${PORT}`);
+  console.log(`Admin secret: ${ADMIN_SECRET}`);
+});
