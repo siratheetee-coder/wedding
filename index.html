@@ -374,8 +374,9 @@
       padding-top: 28px;
       border-top: 1px solid var(--border);
     }
-    .story-detail-item { display: flex; gap: 14px; align-items: flex-start; }
-    .detail-icon { width: 28px; height: 28px; flex-shrink: 0; margin-top: 2px; object-fit: contain; }
+    .story-detail-item { display: flex; gap: 14px; align-items: center; }
+    .detail-icon { width: 28px; height: 28px; flex-shrink: 0; object-fit: contain; }
+    .story-detail-item > div { display: flex; flex-direction: column; gap: 2px; }
     .detail-label { font-size: 0.75rem; letter-spacing: 0.1em; color: var(--accent); text-transform: uppercase; }
     .detail-value { font-weight: 500; font-size: 0.95rem; }
     a.map-btn {
@@ -907,10 +908,35 @@
     /* ── RESPONSIVE ── */
     @media (max-width: 768px) {
       nav { padding: 16px 20px; }
-      .nav-links { display: none; position: absolute; top: 100%; left: 0; right: 0; background: var(--cream); border-bottom: 1px solid var(--border); flex-direction: column; gap: 0; padding: 8px 0; }
+      .nav-links {
+        display: none;
+        position: absolute;
+        top: 100%;
+        left: 0;
+        right: 0;
+        background: var(--cream);
+        border-bottom: 1px solid var(--border);
+        flex-direction: column;
+        gap: 14px;
+        padding: 18px 24px;
+      }
       .nav-links.open { display: flex; }
-      .nav-links a { color: var(--text-muted) !important; padding: 12px 24px; }
-      .nav-rsvp { border-color: var(--accent) !important; color: var(--accent) !important; }
+      .nav-links li { width: 100%; display: flex; justify-content: center; }
+      .nav-links a {
+        color: var(--text-muted) !important;
+        padding: 6px 0;
+        display: inline-block;
+      }
+      .nav-rsvp {
+        border-color: var(--accent) !important;
+        color: var(--accent) !important;
+        padding: 8px 22px !important;
+      }
+      .lang-toggle {
+        border-color: var(--accent);
+        color: var(--accent);
+        padding: 6px 16px;
+      }
       .nav-hamburger { display: block; }
 
       .story-container { grid-template-columns: 1fr; gap: 40px; }
