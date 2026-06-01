@@ -553,20 +553,35 @@
       display: inline-flex;
       align-items: center;
       gap: 8px;
-      padding: 13px 40px;
-      border: 1px solid var(--accent);
-      background: transparent;
-      color: var(--accent);
+      padding: 14px 42px;
+      border: none;
+      background: linear-gradient(135deg, #b08968 0%, #8a6a4f 100%);
+      color: var(--white);
       font-family: 'Sarabun', sans-serif;
       font-size: 0.88rem;
       letter-spacing: 0.18em;
       text-transform: uppercase;
       cursor: pointer;
-      border-radius: 2px;
-      transition: background 0.3s, color 0.3s;
+      border-radius: 999px;
+      box-shadow: 0 4px 14px rgba(138, 106, 79, 0.32);
+      transition: transform 0.25s ease, box-shadow 0.25s ease, filter 0.25s ease;
     }
-    .live-upload-btn:hover { background: var(--accent); color: var(--white); }
-    .live-upload-btn:disabled { opacity: 0.6; cursor: not-allowed; background: var(--accent); color: var(--white); }
+    .live-upload-btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 22px rgba(138, 106, 79, 0.42);
+      filter: brightness(1.05);
+    }
+    .live-upload-btn:active {
+      transform: translateY(0);
+      box-shadow: 0 3px 10px rgba(138, 106, 79, 0.3);
+    }
+    .live-upload-btn:disabled {
+      opacity: 0.7;
+      cursor: not-allowed;
+      transform: none;
+      box-shadow: 0 4px 14px rgba(138, 106, 79, 0.2);
+      filter: none;
+    }
     .live-upload-hint {
       font-size: 0.78rem;
       color: var(--text-muted);
