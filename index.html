@@ -599,26 +599,21 @@
 
     .strip-outer {
       width: 100%;
-      overflow: hidden;
-      -webkit-mask-image: linear-gradient(to right, transparent, black 6%, black 94%, transparent);
-      mask-image: linear-gradient(to right, transparent, black 6%, black 94%, transparent);
+      max-width: 720px;
+      margin: 0 auto;
+      position: relative;
     }
-    .strip-track {
-      display: flex;
-      gap: 10px;
-      width: max-content;
-      animation: strip-scroll 40s linear infinite;
+    .strip-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 8px;
+      opacity: 1;
+      transition: opacity 0.6s ease;
     }
-    .strip-track:hover { animation-play-state: paused; }
-    @keyframes strip-scroll {
-      from { transform: translateX(0); }
-      to   { transform: translateX(-50%); }
-    }
+    .strip-grid.fading { opacity: 0; }
     .strip-photo {
-      width: 172px;
-      height: 230px;
-      flex-shrink: 0;
-      border-radius: 2px;
+      aspect-ratio: 1 / 1;
+      border-radius: 4px;
       overflow: hidden;
       background: var(--border);
     }
@@ -630,6 +625,23 @@
       transition: transform 0.5s;
     }
     .strip-photo:hover img { transform: scale(1.07); }
+    .strip-dots {
+      display: flex;
+      justify-content: center;
+      gap: 8px;
+      margin-top: 18px;
+    }
+    .strip-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--border);
+      transition: background 0.3s, transform 0.3s;
+    }
+    .strip-dot.active { background: var(--accent); transform: scale(1.4); }
+    @media (max-width: 640px) {
+      .strip-grid { grid-template-columns: repeat(3, 1fr); gap: 6px; }
+    }
 
     /* Toast */
     #liveToast {
@@ -1127,7 +1139,8 @@
   </div>
 
   <div class="strip-outer" id="liveStripOuter" style="display:none">
-    <div class="strip-track" id="liveStripTrack"></div>
+    <div class="strip-grid" id="liveStripGrid"></div>
+    <div class="strip-dots" id="liveStripDots"></div>
   </div>
 </section>
 
@@ -1625,10 +1638,18 @@
     }
   }
 
+  let stripTimer = null;
+  let stripPageIndex = 0;
+  const STRIP_PAGE_SIZE = 12;   // 4×3 desktop, 3×4 mobile — both fit 12
+  const STRIP_INTERVAL = 5000;  // ms between pages
+
   function renderStrip(photos) {
     const empty = document.getElementById('liveStripEmpty');
     const outer = document.getElementById('liveStripOuter');
-    const track = document.getElementById('liveStripTrack');
+    const grid = document.getElementById('liveStripGrid');
+    const dots = document.getElementById('liveStripDots');
+
+    if (stripTimer) { clearInterval(stripTimer); stripTimer = null; }
 
     if (photos.length === 0) {
       empty.style.display = 'block';
@@ -1639,18 +1660,41 @@
     empty.style.display = 'none';
     outer.style.display = 'block';
 
-    // Pad to at least 10 items so the strip looks full on any screen
-    let base = [...photos];
-    while (base.length < 10) base = [...base, ...photos];
+    // Chunk into pages of STRIP_PAGE_SIZE
+    const pages = [];
+    for (let i = 0; i < photos.length; i += STRIP_PAGE_SIZE) {
+      pages.push(photos.slice(i, i + STRIP_PAGE_SIZE));
+    }
 
-    // Duplicate for seamless loop (animate -50% of total width)
-    const doubled = [...base, ...base];
-    track.innerHTML = doubled.map(src =>
-      `<div class="strip-photo"><img src="${src}" alt="" loading="lazy" /></div>`
-    ).join('');
+    stripPageIndex = 0;
 
-    // Speed scales with number of photos (~3s per item, min 20s)
-    track.style.animationDuration = `${Math.max(20, base.length * 3)}s`;
+    const paintPage = (idx) => {
+      const page = pages[idx];
+      grid.innerHTML = page.map(src =>
+        `<div class="strip-photo"><img src="${src}" alt="" loading="lazy" /></div>`
+      ).join('');
+      dots.querySelectorAll('.strip-dot').forEach((d, i) =>
+        d.classList.toggle('active', i === idx)
+      );
+    };
+
+    // Build dots (hidden if only one page)
+    dots.innerHTML = pages.length > 1
+      ? pages.map((_, i) => `<div class="strip-dot"></div>`).join('')
+      : '';
+
+    paintPage(0);
+
+    if (pages.length > 1) {
+      stripTimer = setInterval(() => {
+        grid.classList.add('fading');
+        setTimeout(() => {
+          stripPageIndex = (stripPageIndex + 1) % pages.length;
+          paintPage(stripPageIndex);
+          grid.classList.remove('fading');
+        }, 600);
+      }, STRIP_INTERVAL);
+    }
   }
 
   document.getElementById('liveUploadBtn').addEventListener('click', () => {
