@@ -932,79 +932,137 @@
       transform: translateY(0);
     }
 
-    /* ── OPENING CARD REVEAL ── */
+    /* ── OPENING CARD REVEAL (Double-door invitation) ── */
     .card-reveal {
       position: fixed;
       inset: 0;
       z-index: 10000;
-      pointer-events: auto;
-      overflow: hidden;
-      background: transparent;
-    }
-    .card-reveal.done { pointer-events: none; }
-    .card-reveal-half {
-      position: absolute;
-      left: 0;
-      right: 0;
-      height: 50%;
-      background: linear-gradient(180deg, #f7f1e8 0%, #eadbc4 100%);
-      transition: transform 1.4s cubic-bezier(0.77, 0, 0.175, 1);
       display: flex;
+      align-items: center;
       justify-content: center;
-      overflow: hidden;
+      background:
+        radial-gradient(ellipse at center, rgba(60, 40, 25, 0.55) 0%, rgba(20, 12, 6, 0.85) 100%);
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
+      transition: opacity 0.9s ease 0.6s;
+      padding: 24px;
     }
-    .card-reveal-half::before {
+    .card-reveal.faded { opacity: 0; pointer-events: none; }
+    .card-reveal-stage {
+      position: relative;
+      width: 100%;
+      max-width: 420px;
+      aspect-ratio: 2 / 3;
+      perspective: 1600px;
+      animation: cardFloat 0.9s cubic-bezier(0.22, 1, 0.36, 1) both;
+    }
+    @keyframes cardFloat {
+      0% { opacity: 0; transform: translateY(24px) scale(0.94); }
+      100% { opacity: 1; transform: translateY(0) scale(1); }
+    }
+    .card-reveal-door {
+      position: absolute;
+      top: 0;
+      height: 100%;
+      width: 50%;
+      background:
+        radial-gradient(ellipse at 30% 20%, rgba(255, 250, 240, 0.5), transparent 55%),
+        linear-gradient(160deg, #f4e6cc 0%, #e5cfa8 55%, #d4b788 100%);
+      box-shadow:
+        0 20px 60px rgba(0, 0, 0, 0.55),
+        inset 0 0 40px rgba(138, 106, 79, 0.18);
+      transition: transform 1.6s cubic-bezier(0.77, 0, 0.175, 1);
+      overflow: hidden;
+      backface-visibility: hidden;
+    }
+    .card-reveal-door.left {
+      left: 0;
+      transform-origin: left center;
+      border-radius: 8px 2px 2px 8px;
+      border-right: 1px solid rgba(138, 106, 79, 0.35);
+    }
+    .card-reveal-door.right {
+      right: 0;
+      transform-origin: right center;
+      border-radius: 2px 8px 8px 2px;
+    }
+    .card-reveal-door::before {
       content: '';
       position: absolute;
-      inset: 0;
-      background:
-        radial-gradient(ellipse at 20% 30%, rgba(255,255,255,0.5), transparent 50%),
-        radial-gradient(ellipse at 80% 70%, rgba(176, 137, 104, 0.15), transparent 55%);
+      inset: 14px;
+      border: 1px solid rgba(138, 106, 79, 0.5);
       pointer-events: none;
     }
-    .card-reveal-half.top {
-      top: 0;
-      align-items: flex-end;
-      border-bottom: 1px solid rgba(176, 137, 104, 0.35);
-    }
-    .card-reveal-half.bottom {
-      bottom: 0;
-      align-items: flex-start;
-    }
-    .card-reveal.opened .card-reveal-half.top { transform: translateY(-101%); }
-    .card-reveal.opened .card-reveal-half.bottom { transform: translateY(101%); }
-    .card-reveal-inner {
+    .card-reveal-door::after {
+      content: '';
       position: absolute;
-      top: 50%;
-      left: 50%;
-      transform: translate(-50%, -50%);
-      z-index: 2;
-      text-align: center;
-      opacity: 0;
-      animation: cardIntro 1.2s 0.15s cubic-bezier(0.22, 1, 0.36, 1) forwards;
-      transition: opacity 0.5s ease;
+      inset: 22px;
+      border: 1px solid rgba(138, 106, 79, 0.22);
+      pointer-events: none;
     }
-    .card-reveal.opened .card-reveal-inner { opacity: 0; }
+    .card-reveal.opened .card-reveal-door.left { transform: rotateY(-172deg); }
+    .card-reveal.opened .card-reveal-door.right { transform: rotateY(172deg); }
+    .card-reveal-face {
+      position: absolute;
+      inset: 0;
+      z-index: 3;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      padding: 40px 30px;
+      transition: opacity 0.45s ease;
+    }
+    .card-reveal.opened .card-reveal-face { opacity: 0; transition-delay: 0.15s; }
+    .card-reveal-ornament {
+      color: #8a6a4f;
+      font-size: 1.1rem;
+      letter-spacing: 0.5em;
+      margin-bottom: 18px;
+      opacity: 0.7;
+    }
     .card-reveal-logo {
-      width: 130px;
+      width: 128px;
       height: auto;
       display: block;
-      margin: 0 auto 22px;
+      margin: 0 auto 18px;
       filter: drop-shadow(0 4px 18px rgba(138, 106, 79, 0.25));
     }
+    .card-reveal-divider {
+      width: 40px;
+      height: 1px;
+      background: #8a6a4f;
+      margin: 12px auto 18px;
+      position: relative;
+    }
+    .card-reveal-divider::before,
+    .card-reveal-divider::after {
+      content: '';
+      position: absolute;
+      top: 50%;
+      width: 4px;
+      height: 4px;
+      background: #8a6a4f;
+      border-radius: 50%;
+      transform: translateY(-50%);
+    }
+    .card-reveal-divider::before { left: -10px; }
+    .card-reveal-divider::after { right: -10px; }
     .card-reveal-names {
       font-family: 'Playfair Display', serif;
       font-size: 1.55rem;
-      letter-spacing: 0.06em;
-      color: #6a4f38;
-      margin-bottom: 8px;
+      line-height: 1.25;
+      letter-spacing: 0.03em;
+      color: #5a4128;
+      margin-bottom: 6px;
     }
     .card-reveal-sub {
-      font-size: 0.72rem;
-      letter-spacing: 0.4em;
+      font-size: 0.68rem;
+      letter-spacing: 0.42em;
       text-transform: uppercase;
-      color: rgba(106, 79, 56, 0.7);
-      margin-bottom: 28px;
+      color: rgba(106, 79, 56, 0.75);
+      margin-bottom: 26px;
     }
     .card-reveal-open {
       display: inline-flex;
@@ -1013,24 +1071,26 @@
       padding: 11px 30px;
       background: transparent;
       border: 1px solid #8a6a4f;
-      color: #6a4f38;
+      color: #5a4128;
       font-family: 'Sarabun', sans-serif;
-      font-size: 0.82rem;
-      letter-spacing: 0.22em;
+      font-size: 0.78rem;
+      letter-spacing: 0.24em;
       text-transform: uppercase;
       border-radius: 999px;
       cursor: pointer;
-      transition: background 0.3s, color 0.3s;
+      transition: background 0.3s, color 0.3s, transform 0.3s;
     }
-    .card-reveal-open:hover { background: #8a6a4f; color: #fff; }
-    @keyframes cardIntro {
-      0% { opacity: 0; transform: translate(-50%, -46%); }
-      100% { opacity: 1; transform: translate(-50%, -50%); }
+    .card-reveal-open:hover {
+      background: #8a6a4f;
+      color: #fff;
+      transform: translateY(-1px);
     }
     body.card-locked { overflow: hidden; }
     @media (max-width: 480px) {
-      .card-reveal-logo { width: 100px; margin-bottom: 18px; }
+      .card-reveal-stage { max-width: 320px; aspect-ratio: 3 / 4.5; }
+      .card-reveal-logo { width: 100px; margin-bottom: 14px; }
       .card-reveal-names { font-size: 1.3rem; }
+      .card-reveal-face { padding: 30px 22px; }
     }
 
     /* ── RESPONSIVE ── */
@@ -1124,13 +1184,17 @@
 
 <!-- OPENING CARD REVEAL -->
 <div class="card-reveal" id="cardReveal">
-  <div class="card-reveal-half top"></div>
-  <div class="card-reveal-half bottom"></div>
-  <div class="card-reveal-inner">
-    <img class="card-reveal-logo" src="assets/logo.png" alt="MJ" />
-    <div class="card-reveal-names">Madchimapon &amp; Sirathee</div>
-    <div class="card-reveal-sub" data-th="ขอเรียนเชิญ" data-en="You're Invited">ขอเรียนเชิญ</div>
-    <button class="card-reveal-open" id="cardRevealOpen" data-th="เปิดการ์ด ♡" data-en="Open Card ♡">เปิดการ์ด ♡</button>
+  <div class="card-reveal-stage">
+    <div class="card-reveal-door left"></div>
+    <div class="card-reveal-door right"></div>
+    <div class="card-reveal-face">
+      <div class="card-reveal-ornament">✧</div>
+      <img class="card-reveal-logo" src="assets/logo.png" alt="MJ" />
+      <div class="card-reveal-divider"></div>
+      <div class="card-reveal-names">Madchimapon &amp; Sirathee</div>
+      <div class="card-reveal-sub" data-th="ขอเรียนเชิญ" data-en="You're Invited">ขอเรียนเชิญ</div>
+      <button class="card-reveal-open" id="cardRevealOpen" data-th="เปิดการ์ด ♡" data-en="Open Card ♡">เปิดการ์ด ♡</button>
+    </div>
   </div>
 </div>
 
@@ -1356,19 +1420,20 @@
     const open = () => {
       if (overlay.classList.contains('opened')) return;
       overlay.classList.add('opened');
-      document.body.classList.remove('card-locked');
       // Try to start music (user gesture)
       const music = document.getElementById('bgMusic');
       if (music) music.play().catch(() => {});
-      setTimeout(() => {
-        overlay.classList.add('done');
-        overlay.remove();
-      }, 1500);
+      // Fade the backdrop after doors have opened enough
+      setTimeout(() => overlay.classList.add('faded'), 900);
+      setTimeout(() => document.body.classList.remove('card-locked'), 1200);
+      setTimeout(() => overlay.remove(), 2200);
     };
     btn.addEventListener('click', open);
-    // Also open on any tap outside the button after 3s (in case they miss it)
+    // Also allow tap on backdrop after 3s (in case they miss the button)
     setTimeout(() => {
-      overlay.addEventListener('click', open, { once: true });
+      overlay.addEventListener('click', (e) => {
+        if (e.target === overlay || e.target.classList.contains('card-reveal-stage')) open();
+      }, { once: true });
     }, 3000);
   })();
 
