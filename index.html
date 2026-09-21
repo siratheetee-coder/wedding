@@ -979,7 +979,7 @@
       left: 0;
       transform-origin: left center;
       border-radius: 8px 2px 2px 8px;
-      border-right: 1px solid rgba(138, 106, 79, 0.35);
+      border-right: 1px solid rgba(138, 106, 79, 0.18);
     }
     .card-reveal-door.right {
       right: 0;
@@ -1012,7 +1012,24 @@
       justify-content: center;
       text-align: center;
       padding: 40px 30px;
+      isolation: isolate;
       transition: opacity 0.45s ease;
+    }
+    .card-reveal-face::before {
+      content: '';
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 90%;
+      height: 68%;
+      background: radial-gradient(ellipse at center,
+        rgba(255, 250, 240, 0.98) 0%,
+        rgba(255, 250, 240, 0.9) 45%,
+        rgba(255, 250, 240, 0.55) 75%,
+        rgba(255, 250, 240, 0) 100%);
+      z-index: -1;
+      pointer-events: none;
     }
     .card-reveal.opened .card-reveal-face { opacity: 0; transition-delay: 0.15s; }
     .card-reveal-ornament {
