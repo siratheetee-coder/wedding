@@ -743,58 +743,23 @@
       font-size: var(--fs-sm);
     }
 
-    /* ── MAP ── */
-    #map-section {
-      background: linear-gradient(180deg,
-        var(--cream) 0%,
-        var(--cream) 75%,
-        var(--beige) 100%);
-    }
-    .map-container {
-      max-width: 900px;
-      margin: 32px auto 0;
-      position: relative;
+    /* ── EMBEDDED STORY MAP ── */
+    .story-map {
+      margin-top: 14px;
       border-radius: 6px;
       overflow: hidden;
-      box-shadow: var(--shadow-md);
+      box-shadow: var(--shadow-sm);
       background: var(--beige);
     }
-    .map-container iframe {
+    .story-map iframe {
       width: 100%;
-      height: 360px;
+      height: 200px;
       border: 0;
       display: block;
       filter: saturate(0.85) contrast(0.95);
     }
-    .map-actions {
-      display: flex;
-      justify-content: center;
-      gap: 12px;
-      margin-top: 22px;
-      flex-wrap: wrap;
-    }
-    .map-action {
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-      padding: 10px 22px;
-      border: 1px solid var(--accent);
-      border-radius: 999px;
-      color: var(--accent);
-      text-decoration: none;
-      font-size: var(--fs-sm);
-      letter-spacing: 0.05em;
-      background: linear-gradient(90deg, var(--accent) 0%, var(--accent) 50%, transparent 50%, transparent 100%);
-      background-size: 220% 100%;
-      background-position: right center;
-      transition: background-position var(--dur-slow) var(--ease-in-out),
-                  color var(--dur-normal), transform var(--dur-normal), box-shadow var(--dur-normal);
-    }
-    .map-action:hover {
-      background-position: left center;
-      color: var(--white);
-      transform: translateY(-2px);
-      box-shadow: 0 8px 20px rgba(138, 106, 79, 0.35);
+    @media (max-width: 768px) {
+      .story-map iframe { height: 220px; }
     }
 
     /* ── GUESTBOOK ── */
@@ -1747,8 +1712,15 @@
           <div>
             <div class="detail-label" data-th="สถานที่" data-en="Venue">สถานที่</div>
             <div class="detail-value" data-th="โรงแรมตักสิลา จังหวัดมหาสารคาม" data-en="Taksila Hotel, Maha Sarakham">โรงแรมตักสิลา จังหวัดมหาสารคาม</div>
-            <a class="map-btn" href="https://maps.google.com/?q=โรงแรมตักสิลา+มหาสารคาม" target="_blank" rel="noopener"
-               data-th="📍 ดูแผนที่" data-en="📍 View Map">📍 ดูแผนที่</a>
+            <div class="story-map">
+              <iframe
+                loading="lazy"
+                referrerpolicy="no-referrer-when-downgrade"
+                src="https://www.google.com/maps?q=โรงแรมตักสิลา+มหาสารคาม&output=embed"
+                title="โรงแรมตักสิลา มหาสารคาม"></iframe>
+            </div>
+            <a class="map-btn" href="https://www.google.com/maps/dir/?api=1&destination=โรงแรมตักสิลา+มหาสารคาม" target="_blank" rel="noopener"
+               data-th="🚗 นำทาง" data-en="🚗 Get Directions">🚗 นำทาง</a>
           </div>
         </div>
       </div>
@@ -1825,27 +1797,6 @@
     <div class="swatch"><div class="swatch-color" style="background:#e8c6c8"></div><div class="swatch-name">Rose</div></div>
   </div>
   <p class="dress-note fade-up" data-th="* ขออภัยหากมิได้มาเรียนเชิญด้วยตนเอง" data-en="* Our apologies for not being able to invite you in person">* ขออภัยหากมิได้มาเรียนเชิญด้วยตนเอง</p>
-</section>
-
-<!-- MAP -->
-<section id="map-section">
-  <div class="section-body fade-up">
-    <div class="section-label">Venue</div>
-    <h2 class="section-title" data-th="แผนที่งาน" data-en="How to Get There">แผนที่งาน</h2>
-    <div class="section-divider"></div>
-    <p data-th="โรงแรมตักสิลา จังหวัดมหาสารคาม" data-en="Taksila Hotel, Maha Sarakham">โรงแรมตักสิลา จังหวัดมหาสารคาม</p>
-  </div>
-  <div class="map-container fade-up">
-    <iframe
-      loading="lazy"
-      referrerpolicy="no-referrer-when-downgrade"
-      src="https://www.google.com/maps?q=โรงแรมตักสิลา+มหาสารคาม&output=embed"
-      title="โรงแรมตักสิลา มหาสารคาม"></iframe>
-  </div>
-  <div class="map-actions fade-up">
-    <a class="map-action" href="https://www.google.com/maps/dir/?api=1&destination=โรงแรมตักสิลา+มหาสารคาม" target="_blank" rel="noopener"
-       data-th="🚗 นำทาง (Google)" data-en="🚗 Get Directions">🚗 นำทาง (Google)</a>
-  </div>
 </section>
 
 <!-- GALLERY -->
