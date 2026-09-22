@@ -120,7 +120,8 @@
       border-color: var(--accent);
       color: var(--accent) !important;
     }
-    .nav-rsvp:hover {
+    nav .nav-rsvp:hover,
+    nav.scrolled .nav-rsvp:hover {
       background-position: left center;
       border-color: var(--accent) !important;
       color: var(--white) !important;
@@ -993,7 +994,8 @@
                   color 0.35s, border-color 0.35s, transform 0.3s;
     }
     nav.scrolled .lang-toggle { border-color: var(--accent); color: var(--accent); }
-    .lang-toggle:hover {
+    nav .lang-toggle:hover,
+    nav.scrolled .lang-toggle:hover {
       background-position: bottom center;
       border-color: var(--accent);
       color: var(--white);
