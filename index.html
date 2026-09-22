@@ -1529,7 +1529,8 @@
 
     /* ── RESPONSIVE ── */
     @media (max-width: 768px) {
-      nav { padding: 16px 20px; }
+      nav { padding: 14px 18px; }
+      .nav-logo img { height: 66px; }
       .nav-links {
         display: flex;
         position: absolute;
@@ -1539,8 +1540,8 @@
         background: var(--cream);
         border-bottom: 1px solid var(--border);
         flex-direction: column;
-        gap: 14px;
-        padding: 18px 24px;
+        gap: 22px;
+        padding: 26px 24px 30px;
         opacity: 0;
         visibility: hidden;
         transform: translateY(-8px);
@@ -1548,6 +1549,7 @@
           opacity 0.28s ease,
           transform 0.28s cubic-bezier(0.22, 1, 0.36, 1),
           visibility 0s linear 0.28s;
+        box-shadow: 0 12px 24px rgba(60, 40, 25, 0.08);
       }
       .nav-links.open {
         opacity: 1;
@@ -1581,24 +1583,35 @@
       .nav-links li { width: 100%; display: flex; justify-content: center; }
       .nav-links a {
         color: var(--text-muted) !important;
-        padding: 6px 0;
+        padding: 4px 6px;
         display: inline-block;
+        font-size: 0.95rem;
+        letter-spacing: 0.08em;
+        line-height: 1.4;
       }
       /* On mobile, keep underline animation subtle & only under text */
       .nav-links a:not(.nav-rsvp)::after {
-        bottom: 2px;
+        bottom: 0;
+        height: 1px;
       }
       .nav-rsvp {
         border-color: var(--accent) !important;
         color: var(--accent) !important;
-        padding: 8px 22px !important;
+        padding: 10px 26px !important;
+        font-size: 0.85rem !important;
+        letter-spacing: 0.12em !important;
+        margin-top: 4px;
       }
       .lang-toggle {
         border-color: var(--accent);
         color: var(--accent);
-        padding: 6px 16px;
+        padding: 7px 18px;
+        font-size: 0.8rem;
+        margin-bottom: 4px;
       }
       .nav-hamburger { display: block; }
+
+      section { padding: 72px 20px; }
 
       .story-container { grid-template-columns: 1fr; gap: 40px; }
       .story-image-wrap { max-width: 320px; margin: 0 auto; }
@@ -1608,6 +1621,9 @@
       .story-detail-item { justify-content: flex-start; text-align: left; gap: 10px; }
       .story-detail-item > div { align-items: flex-start; }
 
+      .section-label { letter-spacing: 0.28em; }
+      .section-title { font-size: clamp(1.5rem, 6.5vw, 2rem); }
+
       .gallery-grid { columns: 2; }
 
       .form-container { padding: 28px 20px; }
@@ -1615,7 +1631,13 @@
       .food-options { grid-template-columns: 1fr; }
     }
     @media (max-width: 480px) {
+      section { padding: 64px 16px; }
       .gallery-grid { columns: 1; }
+      .nav-links a { font-size: 0.9rem; }
+      .nav-links {
+        padding: 22px 20px 26px;
+        gap: 20px;
+      }
     }
   </style>
 </head>
