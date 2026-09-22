@@ -22,17 +22,54 @@
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
     :root {
+      /* ── Color tokens ── */
       --cream: #faf8f5;
       --beige: #f0ebe3;
       --border: #e0d5c8;
+      --border-soft: #ebe1d1;
       --accent: #8b6e5a;
+      --accent-soft: #b08968;
       --accent-dark: #6b5144;
+      --accent-ink: #5a4128;
       --text: #2c2c2c;
       --text-muted: #7a7268;
       --white: #ffffff;
+      --shadow-sm: 0 2px 8px rgba(60, 40, 25, 0.06);
+      --shadow-md: 0 8px 24px rgba(60, 40, 25, 0.1);
+      --shadow-lg: 0 20px 50px rgba(60, 40, 25, 0.18);
+
+      /* ── Type scale (perfect fourth ~1.25) ── */
+      --fs-xs: 0.75rem;
+      --fs-sm: 0.875rem;
+      --fs-md: 1rem;
+      --fs-lg: 1.25rem;
+      --fs-xl: 1.75rem;
+      --fs-2xl: 2.5rem;
+      --fs-3xl: 3.5rem;
+
+      /* ── Motion tokens ── */
+      --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+      --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
+      --dur-fast: 0.2s;
+      --dur-normal: 0.35s;
+      --dur-slow: 0.6s;
     }
 
     html { scroll-behavior: smooth; }
+
+    /* ── Global focus (keyboard only) ── */
+    *:focus { outline: none; }
+    *:focus-visible {
+      outline: 2px solid var(--accent-soft);
+      outline-offset: 3px;
+      border-radius: 3px;
+    }
+    button:focus-visible,
+    a:focus-visible,
+    input:focus-visible,
+    textarea:focus-visible {
+      outline-offset: 4px;
+    }
 
     body {
       font-family: 'Sarabun', sans-serif;
@@ -361,10 +398,114 @@
     .section-body { max-width: 580px; margin: 0 auto; text-align: center; }
     .section-body p { color: var(--text-muted); line-height: 1.9; }
 
+    /* ── INVITATION CARD (formal) ── */
+    #invitation {
+      background: linear-gradient(180deg,
+        var(--beige) 0%,
+        var(--cream) 100%);
+      padding: 96px 24px;
+    }
+    .invite-card {
+      max-width: 720px;
+      margin: 0 auto;
+      background: var(--white);
+      padding: 60px 40px;
+      text-align: center;
+      position: relative;
+      box-shadow: var(--shadow-md);
+      border: 1px solid var(--border-soft);
+    }
+    .invite-card::before,
+    .invite-card::after {
+      content: '';
+      position: absolute;
+      width: 32px;
+      height: 32px;
+      border: 1px solid var(--accent);
+      opacity: 0.5;
+    }
+    .invite-card::before { top: 14px; left: 14px; border-right: none; border-bottom: none; }
+    .invite-card::after { bottom: 14px; right: 14px; border-left: none; border-top: none; }
+    .invite-families {
+      display: grid;
+      grid-template-columns: 1fr auto 1fr;
+      gap: 24px;
+      align-items: center;
+      margin-bottom: 32px;
+    }
+    .invite-family {
+      font-size: var(--fs-sm);
+      line-height: 1.9;
+      color: var(--text);
+    }
+    .invite-family.left { text-align: right; }
+    .invite-family.right { text-align: left; }
+    .invite-and {
+      font-family: 'Playfair Display', serif;
+      font-style: italic;
+      font-size: 1.15rem;
+      color: var(--accent);
+    }
+    .invite-intro {
+      color: var(--text-muted);
+      font-size: var(--fs-sm);
+      line-height: 1.9;
+      margin-bottom: 28px;
+    }
+    .invite-names {
+      font-family: 'Playfair Display', serif;
+      font-size: 1.9rem;
+      color: var(--accent-ink);
+      line-height: 1.4;
+    }
+    .invite-name-th {
+      font-family: 'Sarabun', sans-serif;
+      font-weight: 600;
+      font-size: 1.4rem;
+      color: var(--accent-ink);
+      margin: 4px 0;
+    }
+    .invite-nickname {
+      color: var(--accent);
+      font-family: 'Sarabun', sans-serif;
+      font-weight: 400;
+      font-size: 1rem;
+    }
+    .invite-ornament {
+      color: var(--accent);
+      font-size: 1.4rem;
+      margin: 18px 0;
+      letter-spacing: 0.4em;
+      opacity: 0.6;
+    }
+    .invite-when {
+      color: var(--text);
+      font-size: var(--fs-md);
+      line-height: 2;
+      margin-top: 24px;
+    }
+    .invite-hash {
+      margin-top: 32px;
+      color: var(--accent);
+      font-family: 'Playfair Display', serif;
+      font-style: italic;
+      font-size: var(--fs-md);
+      letter-spacing: 0.05em;
+    }
+    @media (max-width: 640px) {
+      #invitation { padding: 72px 16px; }
+      .invite-card { padding: 44px 22px; }
+      .invite-families { grid-template-columns: 1fr; gap: 12px; }
+      .invite-family.left, .invite-family.right { text-align: center; }
+      .invite-names { font-size: 1.5rem; }
+      .invite-name-th { font-size: 1.15rem; }
+    }
+
     /* ── STORY ── */
     #story {
       background: linear-gradient(180deg,
-        var(--white) 0%,
+        var(--cream) 0%,
+        var(--white) 25%,
         var(--white) 75%,
         var(--cream) 100%);
     }
@@ -583,6 +724,288 @@
       color: rgba(255,255,255,0.5);
       font-size: 0.8rem;
       letter-spacing: 0.1em;
+    }
+
+    /* ── TIMELINE ── */
+    #timeline {
+      background: linear-gradient(180deg,
+        var(--cream) 0%,
+        var(--cream) 25%,
+        var(--beige) 100%);
+    }
+    .timeline-track {
+      max-width: 900px;
+      margin: 40px auto 0;
+      position: relative;
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 24px;
+    }
+    .timeline-line {
+      position: absolute;
+      top: 48px;
+      left: 12%;
+      right: 12%;
+      height: 1px;
+      background: repeating-linear-gradient(90deg,
+        var(--accent) 0, var(--accent) 6px,
+        transparent 6px, transparent 12px);
+      opacity: 0.4;
+      z-index: 0;
+    }
+    .timeline-item {
+      position: relative;
+      z-index: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      text-align: center;
+      padding: 0 12px;
+    }
+    .timeline-icon {
+      width: 88px;
+      height: 88px;
+      border-radius: 50%;
+      background: var(--white);
+      border: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--accent);
+      box-shadow: var(--shadow-sm);
+      transition: transform var(--dur-normal) var(--ease-out), box-shadow var(--dur-normal);
+      margin-bottom: 20px;
+    }
+    .timeline-icon svg { width: 40px; height: 40px; }
+    .timeline-item:hover .timeline-icon {
+      transform: translateY(-4px);
+      box-shadow: var(--shadow-md);
+    }
+    .timeline-time {
+      font-family: 'Playfair Display', serif;
+      font-size: 1.6rem;
+      color: var(--accent-ink);
+      letter-spacing: 0.06em;
+      margin-bottom: 6px;
+    }
+    .timeline-title {
+      font-size: var(--fs-md);
+      color: var(--text);
+      font-weight: 500;
+      margin-bottom: 4px;
+    }
+    .timeline-note {
+      font-size: var(--fs-xs);
+      color: var(--text-muted);
+      font-style: italic;
+    }
+
+    /* ── DRESS CODE ── */
+    #dress-code {
+      background: linear-gradient(180deg,
+        var(--beige) 0%,
+        var(--beige) 75%,
+        var(--cream) 100%);
+    }
+    .swatch-grid {
+      max-width: 640px;
+      margin: 32px auto 0;
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 22px;
+    }
+    .swatch {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 10px;
+      transition: transform var(--dur-normal) var(--ease-out);
+    }
+    .swatch:hover { transform: translateY(-4px); }
+    .swatch-color {
+      width: 68px;
+      height: 68px;
+      border-radius: 50%;
+      box-shadow: inset 0 -6px 12px rgba(0,0,0,0.08), var(--shadow-sm);
+      border: 3px solid var(--white);
+      outline: 1px solid var(--border-soft);
+    }
+    .swatch-name {
+      font-size: var(--fs-xs);
+      color: var(--text-muted);
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+    .dress-note {
+      max-width: 520px;
+      margin: 32px auto 0;
+      text-align: center;
+      color: var(--text-muted);
+      font-style: italic;
+      font-size: var(--fs-sm);
+    }
+
+    /* ── MAP ── */
+    #map-section {
+      background: linear-gradient(180deg,
+        var(--cream) 0%,
+        var(--cream) 75%,
+        var(--beige) 100%);
+    }
+    .map-container {
+      max-width: 900px;
+      margin: 32px auto 0;
+      position: relative;
+      border-radius: 6px;
+      overflow: hidden;
+      box-shadow: var(--shadow-md);
+      background: var(--beige);
+    }
+    .map-container iframe {
+      width: 100%;
+      height: 360px;
+      border: 0;
+      display: block;
+      filter: saturate(0.85) contrast(0.95);
+    }
+    .map-actions {
+      display: flex;
+      justify-content: center;
+      gap: 12px;
+      margin-top: 22px;
+      flex-wrap: wrap;
+    }
+    .map-action {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 10px 22px;
+      border: 1px solid var(--accent);
+      border-radius: 999px;
+      color: var(--accent);
+      text-decoration: none;
+      font-size: var(--fs-sm);
+      letter-spacing: 0.05em;
+      background: linear-gradient(90deg, var(--accent) 0%, var(--accent) 50%, transparent 50%, transparent 100%);
+      background-size: 220% 100%;
+      background-position: right center;
+      transition: background-position var(--dur-slow) var(--ease-in-out),
+                  color var(--dur-normal), transform var(--dur-normal), box-shadow var(--dur-normal);
+    }
+    .map-action:hover {
+      background-position: left center;
+      color: var(--white);
+      transform: translateY(-2px);
+      box-shadow: 0 8px 20px rgba(138, 106, 79, 0.35);
+    }
+
+    /* ── GUESTBOOK ── */
+    #guestbook {
+      background: linear-gradient(180deg,
+        var(--white) 0%,
+        var(--white) 75%,
+        var(--cream) 100%);
+      overflow: hidden;
+      position: relative;
+    }
+    .guestbook-empty {
+      max-width: 480px;
+      margin: 24px auto 0;
+      text-align: center;
+      color: var(--text-muted);
+      font-size: var(--fs-sm);
+      font-style: italic;
+    }
+    .guestbook-board {
+      max-width: 1100px;
+      margin: 48px auto 0;
+      position: relative;
+      min-height: 480px;
+      padding: 20px;
+    }
+    .polaroid {
+      position: absolute;
+      background: var(--white);
+      padding: 14px 14px 28px;
+      border-radius: 2px;
+      box-shadow: 0 6px 18px rgba(60, 40, 25, 0.14), 0 2px 4px rgba(60, 40, 25, 0.08);
+      width: 220px;
+      opacity: 0;
+      transform: translateY(24px) scale(0.9);
+      animation: polaroidFloat 6s ease-in-out infinite;
+      transition: transform 0.6s var(--ease-out), opacity 0.6s;
+    }
+    .polaroid.visible {
+      opacity: 1;
+    }
+    .polaroid::before {
+      content: '';
+      position: absolute;
+      top: -8px;
+      left: 50%;
+      transform: translateX(-50%) rotate(-3deg);
+      width: 60px;
+      height: 16px;
+      background: rgba(212, 183, 136, 0.55);
+      border-radius: 2px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.08);
+    }
+    .polaroid-message {
+      font-size: var(--fs-sm);
+      color: var(--text);
+      line-height: 1.55;
+      margin-bottom: 10px;
+      display: -webkit-box;
+      -webkit-line-clamp: 4;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
+    .polaroid-author {
+      font-family: 'Playfair Display', serif;
+      font-size: var(--fs-sm);
+      color: var(--accent-ink);
+      text-align: right;
+      font-style: italic;
+    }
+    .polaroid-author::before { content: '— '; }
+    @keyframes polaroidFloat {
+      0%, 100% { transform: translate(var(--tx,0), calc(var(--ty,0px) - 3px)) rotate(var(--rot,0deg)); }
+      50% { transform: translate(var(--tx,0), calc(var(--ty,0px) + 3px)) rotate(var(--rot,0deg)); }
+    }
+    .guestbook-cta {
+      text-align: center;
+      margin-top: 40px;
+      font-size: var(--fs-sm);
+      color: var(--text-muted);
+    }
+    .guestbook-cta a {
+      color: var(--accent);
+      text-decoration: none;
+      border-bottom: 1px solid currentColor;
+      padding-bottom: 1px;
+      font-weight: 500;
+    }
+    @media (max-width: 768px) {
+      .timeline-track { grid-template-columns: 1fr; gap: 42px; }
+      .timeline-line { display: none; }
+      .map-container iframe { height: 280px; }
+      .guestbook-board {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 20px;
+        min-height: auto;
+        padding: 0;
+      }
+      .polaroid {
+        position: relative;
+        width: min(280px, 82%);
+        top: auto !important;
+        left: auto !important;
+        transform: rotate(var(--rot,0deg)) !important;
+        animation: none;
+      }
     }
 
     /* ── LIVE PHOTOS ── */
@@ -1288,6 +1711,7 @@
       .nav-links.open li:nth-child(4) { transition-delay: 0.20s; }
       .nav-links.open li:nth-child(5) { transition-delay: 0.25s; }
       .nav-links.open li:nth-child(6) { transition-delay: 0.30s; }
+      .nav-links.open li:nth-child(7) { transition-delay: 0.35s; }
       .nav-hamburger span { transition: background 0.4s, transform 0.3s ease, opacity 0.2s ease; }
       .nav-hamburger.open span:nth-child(1) { transform: translateY(7px) rotate(45deg); }
       .nav-hamburger.open span:nth-child(2) { opacity: 0; }
@@ -1363,6 +1787,7 @@
     <li><a href="#story" data-th="เรื่องราวของเรา" data-en="Our Story">เรื่องราวของเรา</a></li>
     <li><a href="#gallery" data-th="แกลเลอรี่" data-en="Gallery">แกลเลอรี่</a></li>
     <li><a href="#live-photos" data-th="Live Photos" data-en="Live Photos">Live Photos</a></li>
+    <li><a href="#guestbook" data-th="คำอวยพร" data-en="Guestbook">คำอวยพร</a></li>
     <li><a href="#rsvp" class="nav-rsvp" data-th="ลงทะเบียนการเข้าร่วมงาน" data-en="RSVP">ลงทะเบียนการเข้าร่วมงาน</a></li>
   </ul>
 </nav>
@@ -1389,6 +1814,37 @@
     <span>Scroll</span>
     <div class="scroll-line"></div>
   </button>
+</section>
+
+<!-- FORMAL INVITATION -->
+<section id="invitation">
+  <div class="invite-card fade-up">
+    <div class="invite-families">
+      <div class="invite-family left">
+        พ.ต.อ.จักรพันธุ์ จันหาญ<br>
+        นางพรรณวรีพร จันหาญ
+      </div>
+      <div class="invite-and">&amp;</div>
+      <div class="invite-family right">
+        ผศ.ดร.สนิท ตีเมืองซ้าย<br>
+        นางวิศรุดา ตีเมืองซ้าย
+      </div>
+    </div>
+    <p class="invite-intro"
+       data-th="มีความยินดีขอเรียนเชิญเพื่อมาเป็นเกียรติเนื่องในพิธีมงคลสมรส ระหว่าง"
+       data-en="Cordially invite you to celebrate the marriage of">มีความยินดีขอเรียนเชิญเพื่อมาเป็นเกียรติเนื่องในพิธีมงคลสมรส ระหว่าง</p>
+    <div class="invite-names">
+      <div class="invite-name-th">นางสาวมัชฌิมาพร จันหาญ <span class="invite-nickname">(ปุ่มปิ๋ม)</span></div>
+      <div class="invite-ornament">∘ ✧ ∘</div>
+      <div class="invite-name-th">นายสิรธีร์ ตีเมืองซ้าย <span class="invite-nickname">(ออโต้)</span></div>
+    </div>
+    <div class="invite-when">
+      <div data-th="วันอาทิตย์ที่ 20 ธันวาคม พ.ศ. 2569" data-en="Sunday, 20 December 2026">วันอาทิตย์ที่ 20 ธันวาคม พ.ศ. 2569</div>
+      <div data-th="เวลา 18:00 น. เป็นต้นไป" data-en="From 6:00 PM onwards">เวลา 18:00 น. เป็นต้นไป</div>
+      <div data-th="ณ โรงแรมตักสิลา จังหวัดมหาสารคาม" data-en="Taksila Hotel, Maha Sarakham">ณ โรงแรมตักสิลา จังหวัดมหาสารคาม</div>
+    </div>
+    <div class="invite-hash">#MADlyinlovewithAUTO</div>
+  </div>
 </section>
 
 <!-- STORY -->
@@ -1434,6 +1890,98 @@
   </div>
 </section>
 
+<!-- TIMELINE -->
+<section id="timeline">
+  <div class="section-body fade-up">
+    <div class="section-label">Schedule</div>
+    <h2 class="section-title" data-th="กำหนดการในงาน" data-en="Order of Events">กำหนดการในงาน</h2>
+    <div class="section-divider"></div>
+    <p data-th="ช่วงเวลาสำคัญของค่ำคืนพิเศษ" data-en="Special moments of the evening">ช่วงเวลาสำคัญของค่ำคืนพิเศษ</p>
+  </div>
+  <div class="timeline-track fade-up">
+    <div class="timeline-line" aria-hidden="true"></div>
+    <div class="timeline-item">
+      <div class="timeline-icon">
+        <svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M17 8l-2 6-5 2 4 4-1 6 5-3 5 3-1-6 4-4-5-2z" opacity="0.5"/>
+          <circle cx="24" cy="18" r="4"/>
+          <path d="M20 24l-2 6 6 8 6-8-2-6"/>
+          <path d="M14 42c2-6 6-8 10-8s8 2 10 8"/>
+        </svg>
+      </div>
+      <div class="timeline-time">18:00</div>
+      <div class="timeline-title" data-th="พิธีฉลองมงคลสมรส" data-en="Wedding Reception">พิธีฉลองมงคลสมรส</div>
+      <div class="timeline-note" data-th="ร่วมรับประทานอาหาร" data-en="Dinner served">(ร่วมรับประทานอาหาร)</div>
+    </div>
+    <div class="timeline-item">
+      <div class="timeline-icon">
+        <svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M6 16h6l3-4h18l3 4h6v22H6z"/>
+          <circle cx="24" cy="26" r="7"/>
+          <circle cx="24" cy="26" r="3" opacity="0.5"/>
+          <circle cx="38" cy="19" r="1" fill="currentColor"/>
+        </svg>
+      </div>
+      <div class="timeline-time">19:00</div>
+      <div class="timeline-title" data-th="ร่วมถ่ายภาพกับคู่บ่าว-สาว" data-en="Photo with the Couple">ร่วมถ่ายภาพกับคู่บ่าว-สาว</div>
+      <div class="timeline-note" data-th="บันทึกความทรงจำร่วมกัน" data-en="Capture memories together">บันทึกความทรงจำร่วมกัน</div>
+    </div>
+    <div class="timeline-item">
+      <div class="timeline-icon">
+        <svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="24" cy="24" r="12"/>
+          <path d="M12 24h24M24 12v24M15 15l18 18M33 15L15 33" opacity="0.5"/>
+          <circle cx="24" cy="12" r="1.5" fill="currentColor"/>
+          <path d="M22 36v6M26 36v6" opacity="0.5"/>
+        </svg>
+      </div>
+      <div class="timeline-time">20:00</div>
+      <div class="timeline-title" data-th="After-Party" data-en="After-Party">After-Party</div>
+      <div class="timeline-note" data-th="สนุกกันแบบเต็มที่" data-en="Let's celebrate">สนุกกันแบบเต็มที่</div>
+    </div>
+  </div>
+</section>
+
+<!-- DRESS CODE -->
+<section id="dress-code">
+  <div class="section-body fade-up">
+    <div class="section-label">Dress Code</div>
+    <h2 class="section-title" data-th="ธีมเครื่องแต่งกาย" data-en="Dress Code">ธีมเครื่องแต่งกาย</h2>
+    <div class="section-divider"></div>
+    <p data-th="ร่วมสร้างภาพจำที่สวยงามด้วยโทนสีพาสเทล" data-en="Celebrate with us in soft pastel tones">ร่วมสร้างภาพจำที่สวยงามด้วยโทนสีพาสเทล</p>
+  </div>
+  <div class="swatch-grid fade-up">
+    <div class="swatch"><div class="swatch-color" style="background:#f6c1cd"></div><div class="swatch-name">Blush</div></div>
+    <div class="swatch"><div class="swatch-color" style="background:#f7e6c4"></div><div class="swatch-name">Cream</div></div>
+    <div class="swatch"><div class="swatch-color" style="background:#c9e6d3"></div><div class="swatch-name">Mint</div></div>
+    <div class="swatch"><div class="swatch-color" style="background:#a8c9a2"></div><div class="swatch-name">Sage</div></div>
+    <div class="swatch"><div class="swatch-color" style="background:#c5dbe8"></div><div class="swatch-name">Sky</div></div>
+    <div class="swatch"><div class="swatch-color" style="background:#e8c6c8"></div><div class="swatch-name">Rose</div></div>
+  </div>
+  <p class="dress-note fade-up" data-th="* ขออภัยหากมิได้มาเรียนเชิญด้วยตนเอง" data-en="* Our apologies for not being able to invite you in person">* ขออภัยหากมิได้มาเรียนเชิญด้วยตนเอง</p>
+</section>
+
+<!-- MAP -->
+<section id="map-section">
+  <div class="section-body fade-up">
+    <div class="section-label">Venue</div>
+    <h2 class="section-title" data-th="แผนที่งาน" data-en="How to Get There">แผนที่งาน</h2>
+    <div class="section-divider"></div>
+    <p data-th="โรงแรมตักสิลา จังหวัดมหาสารคาม" data-en="Taksila Hotel, Maha Sarakham">โรงแรมตักสิลา จังหวัดมหาสารคาม</p>
+  </div>
+  <div class="map-container fade-up">
+    <iframe
+      loading="lazy"
+      referrerpolicy="no-referrer-when-downgrade"
+      src="https://www.google.com/maps?q=โรงแรมตักสิลา+มหาสารคาม&output=embed"
+      title="โรงแรมตักสิลา มหาสารคาม"></iframe>
+  </div>
+  <div class="map-actions fade-up">
+    <a class="map-action" href="https://www.google.com/maps/dir/?api=1&destination=โรงแรมตักสิลา+มหาสารคาม" target="_blank" rel="noopener"
+       data-th="🚗 นำทาง (Google)" data-en="🚗 Get Directions">🚗 นำทาง (Google)</a>
+  </div>
+</section>
+
 <!-- GALLERY -->
 <section id="gallery">
   <div class="section-body fade-up">
@@ -1475,6 +2023,23 @@
 </section>
 
 <div id="liveToast"></div>
+
+<!-- GUESTBOOK -->
+<section id="guestbook">
+  <div class="section-body fade-up">
+    <div class="section-label">Guestbook</div>
+    <h2 class="section-title" data-th="คำอวยพรจากเพื่อนๆ" data-en="Wishes From Friends">คำอวยพรจากเพื่อนๆ</h2>
+    <div class="section-divider"></div>
+    <p data-th="ข้อความรักและคำอวยพรที่ทุกคนฝากไว้ให้เรา" data-en="Love and blessings left by our friends">ข้อความรักและคำอวยพรที่ทุกคนฝากไว้ให้เรา</p>
+  </div>
+  <div class="guestbook-board fade-up" id="guestbookBoard"></div>
+  <p class="guestbook-empty" id="guestbookEmpty" style="display:none"
+     data-th="ยังไม่มีคำอวยพร — คุณเป็นคนแรกก็ได้นะ ♡"
+     data-en="No messages yet — be the first ♡">ยังไม่มีคำอวยพร — คุณเป็นคนแรกก็ได้นะ ♡</p>
+  <div class="guestbook-cta fade-up">
+    <a href="#rsvp" data-th="ฝากคำอวยพรถึงเรา ↓" data-en="Leave a message ↓">ฝากคำอวยพรถึงเรา ↓</a>
+  </div>
+</section>
 
 <!-- REGISTRATION -->
 <section id="rsvp">
@@ -2140,6 +2705,79 @@
   });
 
   loadLivePhotos();
+
+  // ── GUESTBOOK ──
+  const guestbookColors = ['#fff', '#fff9ec', '#fdf1e0', '#f7ecd7', '#fff5f1'];
+  function escapeHtml(s) {
+    return String(s).replace(/[&<>"']/g, c => ({
+      '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'
+    }[c]));
+  }
+  async function loadGuestbook() {
+    const board = document.getElementById('guestbookBoard');
+    const empty = document.getElementById('guestbookEmpty');
+    if (!board) return;
+    try {
+      const res = await fetch('/api/messages');
+      const { messages = [] } = await res.json();
+      if (!messages.length) {
+        empty.style.display = 'block';
+        return;
+      }
+      empty.style.display = 'none';
+      // Deterministic pseudo-random layout — desktop only via CSS media
+      const cols = 4;
+      const rows = Math.max(2, Math.ceil(messages.length / cols));
+      const cellW = 100 / cols;
+      const cellH = Math.min(220, 480 / rows);
+      board.style.minHeight = (rows * cellH + 40) + 'px';
+      const cards = messages.slice(0, 12).map((m, i) => {
+        const col = i % cols;
+        const row = Math.floor(i / cols);
+        const jitterX = (i * 37 % 40) - 20;
+        const jitterY = (i * 53 % 30) - 15;
+        const rot = ((i * 13 % 10) - 5);
+        const delay = (i % 5) * 0.4;
+        const bg = guestbookColors[i % guestbookColors.length];
+        const left = `calc(${col * cellW}% + ${jitterX}px)`;
+        const top = `${row * cellH + jitterY}px`;
+        return `<div class="polaroid" style="
+          left:${left};
+          top:${top};
+          background:${bg};
+          --rot:${rot}deg;
+          --tx:0px;
+          --ty:0px;
+          animation-delay:${delay}s;
+          transform: translateY(24px) scale(0.9) rotate(${rot}deg);
+        " data-idx="${i}">
+          <div class="polaroid-message">${escapeHtml(m.message)}</div>
+          <div class="polaroid-author">${escapeHtml(m.name)}</div>
+        </div>`;
+      });
+      board.innerHTML = cards.join('');
+      // Fade-in one by one with intersection
+      const nodes = board.querySelectorAll('.polaroid');
+      const io = new IntersectionObserver((entries) => {
+        entries.forEach(e => {
+          if (e.isIntersecting) {
+            const el = e.target;
+            const rot = el.style.getPropertyValue('--rot');
+            setTimeout(() => {
+              el.classList.add('visible');
+              el.style.transform = `rotate(${rot})`;
+            }, (parseInt(el.dataset.idx, 10) % 8) * 80);
+            io.unobserve(el);
+          }
+        });
+      }, { threshold: 0.15 });
+      nodes.forEach(n => io.observe(n));
+    } catch (err) {
+      console.error('guestbook load', err);
+      empty.style.display = 'block';
+    }
+  }
+  loadGuestbook();
 </script>
 </body>
 </html>
