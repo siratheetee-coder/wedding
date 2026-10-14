@@ -3,6 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="robots" content="noindex, nofollow" />
   <title>จัดโต๊ะแขก — Wedding Seating</title>
   <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;500&family=Sarabun:wght@300;400;500;600&display=swap" rel="stylesheet" />
   <style>
@@ -23,16 +24,6 @@
     button { font-family: inherit; }
     input, select, textarea { font-family: inherit; font-size: 0.92rem; }
 
-    /* LOGIN */
-    #loginScreen { min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 24px; }
-    .login-card { background: white; border: 1px solid var(--border); border-radius: 4px; padding: 52px 44px; max-width: 380px; width: 100%; text-align: center; }
-    .login-icon { font-size: 2rem; margin-bottom: 16px; }
-    .login-title { font-family: 'Playfair Display', serif; font-size: 1.5rem; margin-bottom: 8px; }
-    .login-subtitle { color: var(--text-muted); font-size: 0.88rem; margin-bottom: 28px; }
-    .login-card input { width: 100%; padding: 12px 16px; border: 1px solid var(--border); border-radius: 2px; margin-bottom: 12px; }
-    .login-card input:focus { outline: none; border-color: var(--accent); }
-    .login-error { color: var(--danger); font-size: 0.82rem; margin-top: 10px; display: none; }
-    .login-error.visible { display: block; }
 
     /* BUTTONS */
     .btn { padding: 8px 14px; border-radius: 2px; font-size: 0.82rem; cursor: pointer; transition: all 0.2s; letter-spacing: 0.03em; border: 1px solid var(--border); background: white; color: var(--text); white-space: nowrap; }
@@ -45,7 +36,7 @@
     .btn:disabled { opacity: 0.5; cursor: not-allowed; }
 
     /* APP LAYOUT */
-    #app { display: none; height: 100vh; flex-direction: column; }
+    #app { display: flex; height: 100vh; flex-direction: column; }
     .header { background: white; border-bottom: 1px solid var(--border); padding: 12px 20px; display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
     .header-title { font-family: 'Playfair Display', serif; font-size: 1.2rem; margin-right: auto; }
     .header-title small { font-family: 'Sarabun', sans-serif; font-size: 0.75rem; color: var(--text-muted); margin-left: 8px; }
@@ -160,7 +151,7 @@
     #printArea { display: none; }
     @media print {
       body { background: white; }
-      #app, .modal-bg, .toast, #loginScreen { display: none !important; }
+      #app, .modal-bg, .toast { display: none !important; }
       #printArea { display: block; font-size: 10pt; }
       #printArea h1 { font-family: 'Playfair Display', serif; font-size: 16pt; margin-bottom: 10px; }
       .print-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
@@ -173,18 +164,6 @@
   </style>
 </head>
 <body>
-
-<!-- LOGIN -->
-<div id="loginScreen">
-  <div class="login-card">
-    <div class="login-icon">🪑</div>
-    <h1 class="login-title">จัดโต๊ะแขก</h1>
-    <p class="login-subtitle">กรอก Secret ของ Admin เพื่อเข้าใช้งาน</p>
-    <input type="password" id="secretInput" placeholder="Admin secret" />
-    <button class="btn btn-primary btn-block" id="loginBtn">เข้าสู่ระบบ</button>
-    <div class="login-error" id="loginError">Secret ไม่ถูกต้อง</div>
-  </div>
-</div>
 
 <!-- APP -->
 <div id="app">
@@ -375,7 +354,8 @@
   const uid = () => Math.random().toString(36).slice(2, 10) + Date.now().toString(36).slice(-4);
   const LOCAL_KEY = 'wedding_seating_backup';
 
-  let SECRET = '';
+  // Only needed to pull RSVP registrations (they include phone numbers)
+  let SECRET = sessionStorage.getItem('wedding_secret') || '';
   let state = null;
   let listFilter = 'unseated';
   let selected = new Set();   // guest ids selected for tap-to-assign
@@ -424,7 +404,7 @@
   }
   async function saveRemote() {
     try {
-      const res = await fetch(`/api/seating?secret=${encodeURIComponent(SECRET)}`, {
+      const res = await fetch('/api/seating', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(state),
@@ -444,8 +424,7 @@
   async function loadState() {
     let remote = null;
     try {
-      const res = await fetch(`/api/seating?secret=${encodeURIComponent(SECRET)}`);
-      if (res.status === 401) return 'wrong';
+      const res = await fetch('/api/seating');
       if (!res.ok) throw new Error(res.status);
       remote = (await res.json()).seating;
     } catch (e) {
@@ -460,31 +439,13 @@
     return 'ok';
   }
 
-  // ---------- login ----------
-  async function tryLogin(secret) {
-    SECRET = secret;
-    const r = await loadState();
-    if (r === 'ok') {
-      sessionStorage.setItem('wedding_secret', secret);
-      $('loginScreen').style.display = 'none';
-      $('app').style.display = 'flex';
-      if (state.updatedAt) setStatus('อัปเดตล่าสุด ' + new Date(state.updatedAt).toLocaleString('th-TH', { dateStyle: 'short', timeStyle: 'short' }));
-      render();
-    }
-    return r;
-  }
-  $('loginBtn').addEventListener('click', async () => {
-    const val = $('secretInput').value.trim();
-    if (!val) return;
-    const r = await tryLogin(val);
-    const err = $('loginError');
-    if (r === 'ok') return err.classList.remove('visible');
-    err.textContent = r === 'network' ? 'เชื่อมต่อเซิร์ฟเวอร์ไม่ได้' : 'Secret ไม่ถูกต้อง';
-    err.classList.add('visible');
+  // ---------- start ----------
+  loadState().then((r) => {
+    if (r === 'network') setStatus('เชื่อมต่อเซิร์ฟเวอร์ไม่ได้ — ใช้ข้อมูลสำรองในเครื่อง', true);
+    if (!state) state = defaultState();
+    if (state.updatedAt) setStatus('อัปเดตล่าสุด ' + new Date(state.updatedAt).toLocaleString('th-TH', { dateStyle: 'short', timeStyle: 'short' }));
+    render();
   });
-  $('secretInput').addEventListener('keydown', (e) => { if (e.key === 'Enter') $('loginBtn').click(); });
-  const savedSecret = sessionStorage.getItem('wedding_secret');
-  if (savedSecret) tryLogin(savedSecret);
 
   // ---------- render ----------
   function render() {
@@ -792,8 +753,12 @@
   // ---------- RSVP ----------
   $('rsvpBtn').addEventListener('click', async () => {
     try {
+      if (!SECRET) SECRET = (prompt('ใส่ Admin secret เพื่อดึงรายชื่อจาก RSVP') || '').trim();
+      if (!SECRET) return;
       const res = await fetch(`/api/registrations?secret=${encodeURIComponent(SECRET)}`);
+      if (res.status === 401) { SECRET = ''; return toast('Secret ไม่ถูกต้อง'); }
       if (!res.ok) throw new Error();
+      sessionStorage.setItem('wedding_secret', SECRET);
       const { registrations } = await res.json();
       const have = new Set(state.guests.map((g) => g.rsvpId).filter(Boolean));
       const fresh = (registrations || []).filter((r) => !have.has(r.id));
@@ -803,7 +768,7 @@
       fresh.forEach((r) => {
         const parts = splitParty({
           name: r.name, count: (parseInt(r.guests) || 0) + 1, group: 'RSVP', side: '',
-          note: [r.guestName && `มากับ ${r.guestName}`, r.phone].filter(Boolean).join(' · '), table: null,
+          note: r.guestName ? `มากับ ${r.guestName}` : '', table: null,
         });
         parts.forEach((p) => (p.rsvpId = r.id));
         state.guests.push(...parts);

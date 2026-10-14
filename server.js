@@ -226,11 +226,8 @@ app.delete('/api/guest-photos/:filename', (req, res) => {
   res.json({ success: true });
 });
 
-// Seating plan (admin only) — whole plan stored as one JSON document
+// Seating plan — open without a secret by request; whole plan stored as one JSON document
 app.get('/api/seating', (req, res) => {
-  if (req.query.secret !== ADMIN_SECRET) {
-    return res.status(401).json({ error: 'Unauthorized' });
-  }
   try {
     res.json({ seating: JSON.parse(fs.readFileSync(SEATING_FILE, 'utf8')) });
   } catch {
@@ -239,9 +236,6 @@ app.get('/api/seating', (req, res) => {
 });
 
 app.put('/api/seating', (req, res) => {
-  if (req.query.secret !== ADMIN_SECRET) {
-    return res.status(401).json({ error: 'Unauthorized' });
-  }
   const seating = req.body;
   if (!seating || !Array.isArray(seating.guests)) {
     return res.status(400).json({ error: 'invalid seating data' });

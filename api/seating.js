@@ -1,9 +1,8 @@
 const { redis, KEYS } = require('../lib/redis');
-const { isAdmin, readJsonBody } = require('../lib/auth');
+const { readJsonBody } = require('../lib/auth');
 
-// Seating plan (admin only) — whole plan stored as one JSON document
+// Seating plan — open without a secret by request; whole plan stored as one JSON document
 module.exports = async (req, res) => {
-  if (!isAdmin(req)) return res.status(401).json({ error: 'Unauthorized' });
   try {
     if (req.method === 'GET') {
       const seating = (await redis.get(KEYS.seating)) || null;
