@@ -1033,13 +1033,17 @@
       transform: translateX(-50%) translateY(0);
     }
 
-    /* ── REGISTRATION ── */
-    #rsvp {
-      background: linear-gradient(180deg,
-        var(--white) 0%,
-        var(--white) 75%,
-        var(--cream) 100%);
+    /* ── FORMS (wish form) ── */
+    .wish-form { margin-top: 48px; }
+    .wish-form textarea { min-height: 110px; }
+    .wish-error {
+      display: none;
+      margin-top: 14px;
+      color: #c0392b;
+      font-size: var(--fs-sm);
+      text-align: center;
     }
+    .wish-error.visible { display: block; }
     .form-container {
       max-width: 560px;
       margin: 0 auto;
@@ -1187,57 +1191,6 @@
       display: none;
     }
     .form-error.visible { display: block; }
-
-    /* ── THANK YOU MODAL ── */
-    #thankModal {
-      position: fixed;
-      inset: 0;
-      z-index: 500;
-      display: none;
-      align-items: center;
-      justify-content: center;
-      padding: 24px;
-    }
-    #thankModal.active { display: flex; }
-    .modal-backdrop {
-      position: absolute;
-      inset: 0;
-      background: rgba(0,0,0,0.5);
-    }
-    .modal-card {
-      position: relative;
-      background: var(--white);
-      border-radius: 4px;
-      padding: 52px 44px;
-      max-width: 440px;
-      width: 100%;
-      text-align: center;
-      animation: modalIn 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
-    }
-    @keyframes modalIn {
-      from { opacity: 0; transform: scale(0.85) translateY(20px); }
-      to { opacity: 1; transform: scale(1) translateY(0); }
-    }
-    .modal-icon { font-size: 3rem; margin-bottom: 16px; }
-    .modal-title {
-      font-family: 'Playfair Display', serif;
-      font-size: 1.8rem;
-      margin-bottom: 12px;
-    }
-    .modal-text { color: var(--text-muted); margin-bottom: 28px; line-height: 1.8; }
-    .modal-close-btn {
-      padding: 11px 32px;
-      background: var(--accent);
-      color: var(--white);
-      border: none;
-      border-radius: 2px;
-      font-family: 'Sarabun', sans-serif;
-      font-size: 0.88rem;
-      letter-spacing: 0.12em;
-      cursor: pointer;
-      transition: background 0.3s;
-    }
-    .modal-close-btn:hover { background: var(--accent-dark); }
 
     /* ── FOOTER ── */
     footer {
@@ -1683,7 +1636,6 @@
     <li><a href="#gallery" data-th="แกลเลอรี่" data-en="Gallery">แกลเลอรี่</a></li>
     <li><a href="#live-photos" data-th="Live Photos" data-en="Live Photos">Live Photos</a></li>
     <li><a href="#guestbook" data-th="คำอวยพร" data-en="Guestbook">คำอวยพร</a></li>
-    <li><a href="#rsvp" class="nav-rsvp" data-th="ลงทะเบียนการเข้าร่วมงาน" data-en="RSVP">ลงทะเบียนการเข้าร่วมงาน</a></li>
   </ul>
 </nav>
 
@@ -1793,7 +1745,7 @@
           <path d="M14 42c2-6 6-8 10-8s8 2 10 8"/>
         </svg>
       </div>
-      <div class="timeline-time">18:00</div>
+      <div class="timeline-time">19:00</div>
       <div class="timeline-title" data-th="พิธีฉลองมงคลสมรส" data-en="Wedding Reception">พิธีฉลองมงคลสมรส</div>
       <div class="timeline-note" data-th="ร่วมรับประทานอาหาร" data-en="Dinner served">(ร่วมรับประทานอาหาร)</div>
     </div>
@@ -1886,52 +1838,17 @@
   <p class="guestbook-empty" id="guestbookEmpty" style="display:none"
      data-th="ร่วมอวยพรกับคู่บ่าวสาวได้ที่ด้านล่าง ♡"
      data-en="Send your wishes to the couple below ♡">ร่วมอวยพรกับคู่บ่าวสาวได้ที่ด้านล่าง ♡</p>
-  <div class="guestbook-cta fade-up">
-    <a href="#rsvp" data-th="ฝากคำอวยพรถึงเรา ↓" data-en="Leave a message ↓">ฝากคำอวยพรถึงเรา ↓</a>
-  </div>
-</section>
-
-<!-- REGISTRATION -->
-<section id="rsvp">
-  <div class="section-body fade-up">
-    <div class="section-label" data-th="ลงทะเบียนการเข้าร่วมงาน" data-en="RSVP">ลงทะเบียนการเข้าร่วมงาน</div>
-    <h2 class="section-title" data-th="ร่วมเป็นสักขีพยานในงานสมรสของเรา" data-en="Join Us On Our Special Day">ร่วมเป็นสักขีพยานในงานสมรสของเรา</h2>
-    <div class="section-divider"></div>
-    <p data-th="กรุณายืนยันการเข้าร่วมงานภายใน 30 พฤศจิกายน 2569" data-en="Please RSVP by 30 November 2026">กรุณายืนยันการเข้าร่วมงานภายใน 30 พฤศจิกายน 2569</p>
-  </div>
-  <br><br>
-  <form class="form-container fade-up" id="rsvpForm" novalidate>
-    <div class="form-row">
-      <div class="form-group">
-        <label for="name" data-th="ชื่อ-นามสกุล" data-en="Full Name">ชื่อ-นามสกุล <span style="color:#c0392b">*</span></label>
-        <input type="text" id="name" name="name" placeholder="กรอกชื่อ-นามสกุล" data-th-placeholder="กรอกชื่อ-นามสกุล" data-en-placeholder="Enter your full name" autocomplete="name" />
-        <div class="form-error" id="nameError" data-th="กรุณากรอกชื่อ-นามสกุล" data-en="Please enter your full name">กรุณากรอกชื่อ-นามสกุล</div>
-      </div>
-      <div class="form-group">
-        <label for="phone" data-th="เบอร์โทรศัพท์" data-en="Phone Number">เบอร์โทรศัพท์ <span class="optional" data-th="(ไม่บังคับ)" data-en="(optional)">(ไม่บังคับ)</span></label>
-        <input type="tel" id="phone" name="phone" placeholder="0812345678" autocomplete="tel" />
-      </div>
-    </div>
-
+  <form class="form-container wish-form fade-up" id="wishForm" novalidate>
     <div class="form-group">
-      <label data-th="ผู้ติดตาม" data-en="Additional Guest">ผู้ติดตาม <span class="optional" data-th="(ไม่บังคับ)" data-en="(optional)">(ไม่บังคับ)</span></label>
-      <div class="guest-toggle-wrap">
-        <button type="button" class="guest-btn active" id="guestNone" data-th="มาคนเดียว" data-en="Just me">มาคนเดียว</button>
-        <button type="button" class="guest-btn" id="guestPlus1" data-th="เพิ่มแขก +1 คน" data-en="+1 Guest">เพิ่มแขก +1 คน</button>
-      </div>
-      <input type="hidden" id="guests" name="guests" value="0" />
-      <div id="guestNameWrap" style="display:none; margin-top:12px;">
-        <input type="text" id="guestName" name="guestName" placeholder="ชื่อผู้ติดตาม" data-th-placeholder="ชื่อผู้ติดตาม" data-en-placeholder="Guest's name" />
-      </div>
+      <label for="wishName" data-th="ชื่อของคุณ" data-en="Your Name">ชื่อของคุณ</label>
+      <input type="text" id="wishName" maxlength="60" autocomplete="name" placeholder="ชื่อเล่น หรือ ชื่อ-นามสกุล" data-th-placeholder="ชื่อเล่น หรือ ชื่อ-นามสกุล" data-en-placeholder="Nickname or full name" />
     </div>
-
     <div class="form-group">
-      <label for="message" data-th="ข้อความถึงคู่บ่าวสาว" data-en="Message to the Couple">ข้อความถึงคู่บ่าวสาว <span class="optional" data-th="(ไม่บังคับ)" data-en="(optional)">(ไม่บังคับ)</span></label>
-      <textarea id="message" name="message" placeholder="คำอวยพร หรือข้อความที่อยากบอก…" data-th-placeholder="คำอวยพร หรือข้อความที่อยากบอก…" data-en-placeholder="A blessing or anything you'd like to say…"></textarea>
+      <label for="wishMessage" data-th="คำอวยพร" data-en="Your Wish">คำอวยพร</label>
+      <textarea id="wishMessage" maxlength="300" placeholder="เขียนคำอวยพรถึงคู่บ่าวสาว…" data-th-placeholder="เขียนคำอวยพรถึงคู่บ่าวสาว…" data-en-placeholder="Write your wishes for the couple…"></textarea>
     </div>
-
-    <button type="submit" class="btn-submit" id="submitBtn" data-th="ยืนยันการเข้าร่วมงาน" data-en="Confirm Attendance">ยืนยันการเข้าร่วมงาน</button>
-    <div id="submitError" style="display:none;margin-top:14px;color:#c0392b;font-size:0.85rem;text-align:center;"></div>
+    <button type="submit" class="btn-submit" id="wishSubmit" data-th="ส่งคำอวยพร ♡" data-en="Send Wishes ♡">ส่งคำอวยพร ♡</button>
+    <div class="wish-error" id="wishError" role="alert"></div>
   </form>
 </section>
 
@@ -1967,16 +1884,6 @@
   <div class="lb-counter" id="lbCounter"></div>
 </div>
 
-<!-- THANK YOU MODAL -->
-<div id="thankModal">
-  <div class="modal-backdrop" id="modalBackdrop"></div>
-  <div class="modal-card">
-    <div class="modal-icon">💐</div>
-    <h2 class="modal-title" data-th="ขอบคุณมากครับ / ค่ะ" data-en="Thank You!">ขอบคุณมากครับ / ค่ะ</h2>
-    <p class="modal-text" data-th="เราได้รับการยืนยันของท่านแล้ว รอพบกันในวันพิเศษของเรา!" data-en="We've received your RSVP. We can't wait to celebrate with you!">เราได้รับการยืนยันของท่านแล้ว<br>รอพบกันในวันพิเศษของเรา!</p>
-    <button class="modal-close-btn" id="modalCloseBtn" data-th="ปิด" data-en="Close">ปิด</button>
-  </div>
-</div>
 
 <script>
   // OPENING CARD REVEAL
@@ -2100,7 +2007,7 @@
         wrap.appendChild(b);
       }
     }
-    ['story', 'gallery', 'live-photos', 'rsvp'].forEach(id => createSectionBubbles(id, 9));
+    ['story', 'gallery', 'live-photos', 'guestbook'].forEach(id => createSectionBubbles(id, 9));
   })();
 
   // COUNTDOWN
@@ -2156,10 +2063,6 @@
 
   // LANGUAGE TOGGLE
   let currentLang = 'th';
-  const STRINGS = {
-    th: { submit: 'ยืนยันการเข้าร่วมงาน', submitting: 'กำลังส่ง…' },
-    en: { submit: 'Confirm Attendance', submitting: 'Sending…' },
-  };
 
   function setLang(lang) {
     currentLang = lang;
@@ -2171,8 +2074,6 @@
     document.querySelectorAll('[data-th-placeholder]').forEach(el => {
       el.placeholder = lang === 'th' ? el.dataset.thPlaceholder : el.dataset.enPlaceholder;
     });
-    const sb = document.getElementById('submitBtn');
-    if (!sb.disabled) sb.textContent = STRINGS[lang].submit;
   }
 
   document.getElementById('langToggle').addEventListener('click', () => {
@@ -2212,25 +2113,6 @@
     } else {
       bgMusic.pause();
     }
-  });
-
-  // GUEST TOGGLE
-  const guestNoneBtn = document.getElementById('guestNone');
-  const guestPlus1Btn = document.getElementById('guestPlus1');
-  const guestsInput = document.getElementById('guests');
-  const guestNameWrap = document.getElementById('guestNameWrap');
-
-  guestNoneBtn.addEventListener('click', () => {
-    guestNoneBtn.classList.add('active');
-    guestPlus1Btn.classList.remove('active');
-    guestsInput.value = '0';
-    guestNameWrap.style.display = 'none';
-  });
-  guestPlus1Btn.addEventListener('click', () => {
-    guestPlus1Btn.classList.add('active');
-    guestNoneBtn.classList.remove('active');
-    guestsInput.value = '1';
-    guestNameWrap.style.display = 'block';
   });
 
   // Intersection observer for fade-up
@@ -2370,75 +2252,6 @@
     if (e.key === 'Escape') closeLightbox();
     if (e.key === 'ArrowLeft') lbNavigate(-1);
     if (e.key === 'ArrowRight') lbNavigate(1);
-  });
-
-  // RSVP Form
-  const form = document.getElementById('rsvpForm');
-  const submitBtn = document.getElementById('submitBtn');
-  const nameInput = document.getElementById('name');
-  const nameError = document.getElementById('nameError');
-
-  nameInput.addEventListener('input', () => {
-    nameError.classList.remove('visible');
-  });
-
-  form.addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const name = nameInput.value.trim();
-    if (name.length < 2) {
-      nameError.classList.add('visible');
-      nameInput.focus();
-      return;
-    }
-
-    const payload = {
-      name,
-      phone: form.phone.value.trim(),
-      guests: parseInt(guestsInput.value) || 0,
-      guestName: document.getElementById('guestName').value.trim(),
-      message: document.getElementById('message').value.trim(),
-    };
-
-    submitBtn.disabled = true;
-    submitBtn.textContent = STRINGS[currentLang].submitting;
-
-    try {
-      const res = await fetch('/api/register', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      });
-      const data = await res.json();
-      if (data.success) {
-        form.reset();
-        guestNoneBtn.classList.add('active');
-        guestPlus1Btn.classList.remove('active');
-        guestNameWrap.style.display = 'none';
-        guestsInput.value = '0';
-        document.getElementById('thankModal').classList.add('active');
-      } else {
-        const errEl = document.getElementById('submitError');
-        errEl.textContent = data.error || 'เกิดข้อผิดพลาด กรุณาลองใหม่';
-        errEl.style.display = 'block';
-        setTimeout(() => { errEl.style.display = 'none'; }, 6000);
-      }
-    } catch {
-      const errEl = document.getElementById('submitError');
-      errEl.textContent = 'ไม่สามารถเชื่อมต่อได้ กรุณาลองใหม่';
-      errEl.style.display = 'block';
-      setTimeout(() => { errEl.style.display = 'none'; }, 6000);
-    } finally {
-      submitBtn.disabled = false;
-      submitBtn.textContent = STRINGS[currentLang].submit;
-    }
-  });
-
-  // Modal close
-  document.getElementById('modalCloseBtn').addEventListener('click', () => {
-    document.getElementById('thankModal').classList.remove('active');
-  });
-  document.getElementById('modalBackdrop').addEventListener('click', () => {
-    document.getElementById('thankModal').classList.remove('active');
   });
 
   loadGallery();
@@ -2628,6 +2441,45 @@
     }
   }
   loadGuestbook();
+
+  const wishForm = document.getElementById('wishForm');
+  const wishSubmit = document.getElementById('wishSubmit');
+  const wishError = document.getElementById('wishError');
+  const showWishError = msg => {
+    wishError.textContent = msg;
+    wishError.classList.add('visible');
+  };
+  wishForm.addEventListener('submit', async e => {
+    e.preventDefault();
+    wishError.classList.remove('visible');
+    const name = document.getElementById('wishName').value.trim();
+    const message = document.getElementById('wishMessage').value.trim();
+    const th = currentLang === 'th';
+    if (!name) return showWishError(th ? 'กรุณากรอกชื่อ' : 'Please enter your name');
+    if (!message) return showWishError(th ? 'กรุณาเขียนคำอวยพร' : 'Please write a message');
+    wishSubmit.disabled = true;
+    wishSubmit.textContent = th ? 'กำลังส่ง…' : 'Sending…';
+    try {
+      const res = await fetch('/api/messages', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, message }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        wishForm.reset();
+        showLiveToast(th ? 'ขอบคุณสำหรับคำอวยพร ♡' : 'Thank you for your wishes ♡');
+        loadGuestbook();
+      } else {
+        showWishError(data.error || (th ? 'ส่งไม่สำเร็จ กรุณาลองใหม่' : 'Could not send, please try again'));
+      }
+    } catch {
+      showWishError(th ? 'ไม่สามารถเชื่อมต่อได้ กรุณาลองใหม่' : 'Connection failed, please try again');
+    } finally {
+      wishSubmit.disabled = false;
+      wishSubmit.textContent = currentLang === 'th' ? 'ส่งคำอวยพร ♡' : 'Send Wishes ♡';
+    }
+  });
 </script>
 </body>
 </html>
