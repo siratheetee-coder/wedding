@@ -100,6 +100,8 @@
     .section-label { font-size: 0.78rem; color: var(--text-muted); margin: 14px 0 8px; display: flex; align-items: center; gap: 8px; }
     .section-label:first-of-type { margin-top: 0; }
     .section-label .btn { padding: 4px 10px; font-size: 0.75rem; }
+    .modal label.swap-item { display: flex; margin: 0; align-items: center; gap: 8px; padding: 8px 0; border-bottom: 1px solid var(--beige); cursor: pointer; }
+    .swap-item input { width: 18px; height: 18px; flex-shrink: 0; }
     .modal label.check { display: flex; align-items: center; gap: 8px; font-size: 0.88rem; margin-top: 12px; cursor: pointer; }
     .tc-head { display: flex; justify-content: space-between; align-items: baseline; gap: 6px; }
     .tc-no { font-family: 'Playfair Display', serif; font-size: 1.05rem; }
@@ -296,6 +298,7 @@
     <input class="field" id="gNote" />
     <div class="modal-actions">
       <button class="btn btn-danger left" id="gDelete">ลบแขก</button>
+      <button class="btn" id="gSplit">แบ่งกลุ่ม</button>
       <button class="btn" data-close>ยกเลิก</button>
       <button class="btn btn-primary" id="gSave">บันทึก</button>
     </div>
@@ -325,6 +328,22 @@
       <button class="btn" id="tmMoveAll">ย้ายทั้งโต๊ะ</button>
       <button class="btn btn-danger" id="tmDelete">ลบโต๊ะนี้</button>
       <button class="btn btn-primary" data-close>เสร็จ</button>
+    </div>
+  </div>
+</div>
+
+<!-- SWAP MODAL -->
+<div class="modal-bg" id="swapModal">
+  <div class="modal">
+    <h2 id="swTitle">โต๊ะเต็ม</h2>
+    <p class="sub" id="swSub"></p>
+    <label id="swLabel">เลือกคนที่จะสลับออก</label>
+    <div id="swList"></div>
+    <div class="preview" id="swPreview"></div>
+    <div class="modal-actions">
+      <button class="btn left" id="swOver">ใส่เกินจำนวนไปเลย</button>
+      <button class="btn" id="swCancel">ยกเลิก</button>
+      <button class="btn btn-primary" id="swDo" disabled>สลับ</button>
     </div>
   </div>
 </div>
@@ -652,18 +671,98 @@
   const findGuest = (id) => state.guests.find((g) => g.id === id);
 
   // ---------- assign ----------
-  function assign(ids, table) {
+  // done(ok) runs once the move is settled — immediately, or after the swap dialog
+  function assign(ids, table, done = () => {}) {
     const gs = ids.map(findGuest).filter(Boolean);
     const moving = gs.filter((g) => g.table !== table);
-    if (!moving.length) { selected.clear(); render(); return; }
+    if (!moving.length) { selected.clear(); render(); return done(false); }
     const need = moving.reduce((s, g) => s + g.count, 0);
-    const after = usedAt(table) + need, cap = capOf(table);
-    if (after > cap && !confirm(`${labelOf(table)} จะมี ${after} คน (เกิน ${cap} ที่นั่ง) — ยืนยันจัดลงหรือไม่?`)) return;
+    if (usedAt(table) + need > capOf(table)) return openSwap(moving, table, done);
+    finishMove(moving, table, []);
+    done(true);
+  }
+  function finishMove(moving, table, swapOut, source) {
+    const need = moving.reduce((s, g) => s + g.count, 0);
+    swapOut.forEach((g) => (g.table = source || null));
     moving.forEach((g) => (g.table = table));
     selected.clear();
     persist();
     render();
-    toast(`จัด ${need} คนลง${labelOf(table)} แล้ว`);
+    toast(swapOut.length
+      ? `สลับแล้ว: ${need} คนไป${labelOf(table)} · ${swapOut.reduce((s, g) => s + g.count, 0)} คนไป${source ? labelOf(source) : '"ยังไม่จัด"'}`
+      : `จัด ${need} คนลง${labelOf(table)} แล้ว`);
+  }
+
+  // ---------- swap (destination table is full) ----------
+  let swapCtx = null;
+  function openSwap(moving, table, done) {
+    const sources = [...new Set(moving.map((g) => g.table))];
+    const source = sources.length === 1 ? sources[0] : null;   // null = unseated / mixed
+    swapCtx = { moving, table, done, source };
+    const need = moving.reduce((s, g) => s + g.count, 0);
+    $('swTitle').textContent = `${labelOf(table)} ที่นั่งไม่พอ`;
+    $('swSub').textContent = `จะย้าย ${moving.map((g) => g.name).join(', ')} (${need} คน) มา${labelOf(table)} ซึ่งมี ${usedAt(table)}/${capOf(table)} คน`;
+    $('swLabel').textContent = `เลือกคนใน${labelOf(table)} ที่จะสลับไป${source ? labelOf(source) : 'ไว้ที่ "ยังไม่จัด"'}`;
+    $('swList').innerHTML = guestsAt(table).map((g) => `
+      <label class="swap-item">
+        <input type="checkbox" value="${g.id}" />
+        <span class="guest-dot" style="background:${colorOf(g.group)}"></span>
+        <div class="guest-info"><div class="guest-name">${esc(g.name)}</div><div class="guest-meta">${esc(g.group || '—')}</div></div>
+        <span class="guest-count">${g.count}</span>
+      </label>`).join('');
+    updateSwapPreview();
+    openModal('swapModal');
+  }
+  function swapPicked() {
+    return [...$('swList').querySelectorAll('input:checked')].map((x) => findGuest(x.value));
+  }
+  function updateSwapPreview() {
+    const { moving, table, source } = swapCtx;
+    const need = moving.reduce((s, g) => s + g.count, 0);
+    const out = swapPicked().reduce((s, g) => s + g.count, 0);
+    const dest = usedAt(table) + need - out;
+    let text = `${labelOf(table)} จะมี ${dest}/${capOf(table)} คน`;
+    let ok = dest <= capOf(table);
+    if (source) {
+      const src = usedAt(source) - need + out;
+      text += ` · ${labelOf(source)} จะมี ${src}/${capOf(source)} คน`;
+      ok = ok && src <= capOf(source);
+    }
+    $('swPreview').textContent = text;
+    $('swPreview').classList.toggle('error', !ok);
+    $('swDo').disabled = out === 0;
+  }
+  function closeSwap(ok) {
+    closeModal('swapModal');
+    const cb = swapCtx?.done;
+    swapCtx = null;
+    if (cb) cb(ok);
+  }
+  $('swList').addEventListener('change', updateSwapPreview);
+  $('swDo').addEventListener('click', () => {
+    const { moving, table, source } = swapCtx;
+    finishMove(moving, table, swapPicked(), source);
+    closeSwap(true);
+  });
+  $('swOver').addEventListener('click', () => {
+    finishMove(swapCtx.moving, swapCtx.table, []);
+    closeSwap(true);
+  });
+  $('swCancel').addEventListener('click', () => closeSwap(false));
+  $('swapModal').addEventListener('click', (e) => { if (e.target === $('swapModal')) closeSwap(false); });
+
+  // ---------- split a party ----------
+  // Takes `k` people off guest g into a new entry with the same details; returns it
+  function splitGuest(g) {
+    const raw = prompt(`แบ่ง "${g.name}" (${g.count} คน) — จะแยกออกมากี่คน?`, Math.floor(g.count / 2));
+    if (raw === null) return null;
+    const k = parseInt(raw);
+    if (!(k >= 1 && k < g.count)) { toast(`ใส่ได้ 1 ถึง ${g.count - 1} คน`); return null; }
+    g.count -= k;
+    const part = { ...g, id: uid(), count: k };
+    state.guests.splice(state.guests.indexOf(g) + 1, 0, part);
+    persist();
+    return part;
   }
 
   // guest list interactions
@@ -754,7 +853,9 @@
     });
   });
   document.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape') document.querySelectorAll('.modal-bg.open').forEach((m) => closeModal(m.id));
+    if (e.key !== 'Escape') return;
+    if ($('swapModal').classList.contains('open')) return closeSwap(false);
+    document.querySelectorAll('.modal-bg.open').forEach((m) => closeModal(m.id));
   });
 
   // ---------- import ----------
@@ -889,6 +990,7 @@
     $('gNote').value = g?.note || '';
     tableOptions($('gTable'), g?.table || null);
     $('gDelete').style.display = g ? '' : 'none';
+    $('gSplit').style.display = g && g.count > 1 ? '' : 'none';
     openModal('guestModal');
     $('gName').focus();
   }
@@ -910,6 +1012,16 @@
     closeModal('guestModal');
     render();
     if (openTable) renderTableModal();
+  });
+  $('gSplit').addEventListener('click', () => {
+    if (!editingGuest) return;
+    if (editingGuest.count < 2) return toast('กลุ่มนี้มีคนเดียว แบ่งไม่ได้');
+    const part = splitGuest(editingGuest);
+    if (!part) return;
+    closeModal('guestModal');
+    render();
+    if (openTable) renderTableModal();
+    toast(`แยก ${part.count} คนเป็นอีกรายการแล้ว (อยู่${part.table ? labelOf(part.table) : '"ยังไม่จัด"'}เหมือนเดิม)`);
   });
   $('gDelete').addEventListener('click', () => {
     if (!editingGuest || !confirm(`ลบ "${editingGuest.name}" ออกจากรายชื่อ?`)) return;
@@ -940,6 +1052,7 @@
         <span class="guest-dot" style="background:${colorOf(g.group)}"></span>
         <div class="guest-info"><div class="guest-name">${esc(g.name)}</div><div class="guest-meta">${esc([g.side, g.group, g.note].filter(Boolean).join(' · ') || '—')}</div></div>
         <span class="guest-count">${g.count}</span>
+        ${g.count > 1 ? `<button class="btn" data-split="${g.id}">แบ่ง</button>` : ''}
         <button class="btn" data-move="${g.id}">ย้าย</button>
         <button class="btn" data-unseat="${g.id}">เอาออก</button>
       </div>`).join('') : '<div class="hint">ยังไม่มีแขก</div>';
@@ -972,20 +1085,23 @@
   $('tmAddResults').addEventListener('click', (e) => {
     const item = e.target.closest('.add-item');
     if (!item) return;
+    const after = () => {
+      $('tmAdd').value = '';
+      $('tmAddCount').value = 1;
+      if (openTable) renderTableModal();
+    };
     if (item.dataset.add) {
-      assign([item.dataset.add], openTable);
+      assign([item.dataset.add], openTable, after);
     } else {
       const name = $('tmAdd').value.trim();
       if (!name) return;
       const g = { id: uid(), name, count: Math.max(1, parseInt($('tmAddCount').value) || 1), group: nameOf(openTable) || '', side: '', note: '', table: null };
       state.guests.push(g);
-      assign([g.id], openTable);
-      if (!g.table) state.guests = state.guests.filter((x) => x !== g);  // cancelled over-capacity confirm
+      assign([g.id], openTable, (ok) => {
+        if (!ok) state.guests = state.guests.filter((x) => x !== g);  // cancelled
+        after();
+      });
     }
-    $('tmAdd').value = '';
-    $('tmAddCount').value = 1;
-    renderTableModal();
-    $('tmAdd').focus();
   });
   // Move: pick guests here, then tap the destination table in the grid
   function startMove(ids) {
@@ -1007,6 +1123,12 @@
   $('tmMembers').addEventListener('click', (e) => {
     const mv = e.target.closest('[data-move]');
     if (mv) return startMove([mv.dataset.move]);
+    const sp = e.target.closest('[data-split]');
+    if (sp) {
+      const part = splitGuest(findGuest(sp.dataset.split));
+      if (part) { render(); startMove([part.id]); toast(`แยก ${part.count} คนแล้ว — แตะโต๊ะที่จะให้ไปนั่ง`); }
+      return;
+    }
     const b = e.target.closest('[data-unseat]');
     if (!b) return;
     findGuest(b.dataset.unseat).table = null;
