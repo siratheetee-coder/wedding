@@ -314,7 +314,7 @@
     <label class="check"><input type="checkbox" id="tmVip" /> โต๊ะ VIP (แถวหน้าสุด)</label>
     <label>แขกในโต๊ะนี้</label>
     <div id="tmMembers"></div>
-    <label>เพิ่มแขก — พิมพ์ชื่อเพื่อค้นหาแขกที่ยังไม่ได้จัด หรือเพิ่มชื่อใหม่</label>
+    <label>เพิ่มแขก — พิมพ์ชื่อเพื่อค้นหา (แขกที่จัดโต๊ะอื่นแล้วจะถูกย้ายมาโต๊ะนี้) หรือเพิ่มชื่อใหม่</label>
     <div class="add-row">
       <input class="field" id="tmAdd" placeholder="พิมพ์ชื่อแขก…" autocomplete="off" />
       <input class="field count" id="tmAddCount" type="number" min="1" value="1" title="จำนวนคน (สำหรับชื่อใหม่)" />
@@ -949,11 +949,16 @@
     const q = $('tmAdd').value.trim();
     if (!q) return ($('tmAddResults').innerHTML = '');
     const ql = q.toLowerCase();
-    const hits = state.guests.filter((g) => !g.table && `${g.name} ${g.group}`.toLowerCase().includes(ql)).slice(0, 30);
+    // Unseated guests first, then guests at other tables (choosing one moves them here)
+    const hits = state.guests
+      .filter((g) => g.table !== openTable && `${g.name} ${g.group}`.toLowerCase().includes(ql))
+      .sort((a, b) => (a.table ? 1 : 0) - (b.table ? 1 : 0))
+      .slice(0, 30);
     $('tmAddResults').innerHTML = hits.map((g) => `
       <div class="add-item" data-add="${g.id}">
         <span class="guest-dot" style="background:${colorOf(g.group)}"></span>
         <div class="guest-info"><div class="guest-name">${esc(g.name)}</div><div class="guest-meta">${esc(g.group || '—')}</div></div>
+        ${g.table ? `<span class="guest-table">อยู่${esc(labelOf(g.table))} → ย้ายมา</span>` : ''}
         <span class="guest-count">${g.count}</span>
       </div>`).join('') +
       `<div class="add-item new" data-new="1">＋ เพิ่ม "${esc(q)}" เป็นแขกใหม่ในโต๊ะนี้</div>`;
