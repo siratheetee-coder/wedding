@@ -314,6 +314,7 @@
     <div class="add-results" id="tmAddResults"></div>
     <div class="modal-actions">
       <button class="btn btn-danger left" id="tmClear">ล้างโต๊ะ</button>
+      <button class="btn" id="tmMoveAll">ย้ายทั้งโต๊ะ</button>
       <button class="btn btn-primary" data-close>เสร็จ</button>
     </div>
   </div>
@@ -537,7 +538,10 @@
     $('selFoot').innerHTML = selected.size
       ? `เลือก ${selected.size} รายการ (${selPeople} คน) — แตะโต๊ะเพื่อจัดลง · <a href="#" id="clearSel">ยกเลิก</a>`
       : 'ลากชื่อไปวางบนโต๊ะ หรือแตะเลือกชื่อแล้วแตะโต๊ะ';
-    $('tableHint').textContent = selected.size ? `เลือกแล้ว ${selPeople} คน — แตะโต๊ะที่ต้องการ` : '';
+    const from = [...new Set([...selected].map(findGuest).filter((g) => g && g.table).map((g) => g.table))];
+    $('tableHint').innerHTML = selected.size
+      ? `<b>${from.length ? `ย้ายจากโต๊ะ ${from.join(', ')}` : 'เลือกแล้ว'} ${selPeople} คน</b> — แตะโต๊ะปลายทาง · <a href="#" data-cancel-sel>ยกเลิก</a>`
+      : '';
   }
 
   function tableMatches(n) {
@@ -595,7 +599,7 @@
   function assign(ids, table) {
     const gs = ids.map(findGuest).filter(Boolean);
     const moving = gs.filter((g) => g.table !== table);
-    if (!moving.length) return;
+    if (!moving.length) { selected.clear(); render(); return; }
     const need = moving.reduce((s, g) => s + g.count, 0);
     const after = usedAt(table) + need, cap = capOf(table);
     if (after > cap && !confirm(`โต๊ะ ${table} จะมี ${after} คน (เกิน ${cap} ที่นั่ง) — ยืนยันจัดลงหรือไม่?`)) return;
@@ -877,6 +881,7 @@
         <span class="guest-dot" style="background:${colorOf(g.group)}"></span>
         <div class="guest-info"><div class="guest-name">${esc(g.name)}</div><div class="guest-meta">${esc([g.side, g.group, g.note].filter(Boolean).join(' · ') || '—')}</div></div>
         <span class="guest-count">${g.count}</span>
+        <button class="btn" data-move="${g.id}">ย้าย</button>
         <button class="btn" data-unseat="${g.id}">เอาออก</button>
       </div>`).join('') : '<div class="hint">ยังไม่มีแขก</div>';
     renderAddResults();
@@ -918,7 +923,26 @@
     renderTableModal();
     $('tmAdd').focus();
   });
+  // Move: pick guests here, then tap the destination table in the grid
+  function startMove(ids) {
+    if (!ids.length) return;
+    selected = new Set(ids);
+    openTable = null;
+    closeModal('tableModal');
+    $('main').dataset.view = 'tables';
+    document.querySelectorAll('.mobile-tabs button').forEach((x) => x.classList.toggle('active', x.dataset.view === 'tables'));
+    renderGuestList();
+    renderGrid();
+    toast('แตะโต๊ะที่ต้องการย้ายไป');
+  }
+  $('tmMoveAll').addEventListener('click', () => startMove(guestsAt(openTable).map((g) => g.id)));
+  $('tableHint').addEventListener('click', (e) => {
+    if (!e.target.closest('[data-cancel-sel]')) return;
+    e.preventDefault(); selected.clear(); renderGuestList(); renderGrid();
+  });
   $('tmMembers').addEventListener('click', (e) => {
+    const mv = e.target.closest('[data-move]');
+    if (mv) return startMove([mv.dataset.move]);
     const b = e.target.closest('[data-unseat]');
     if (!b) return;
     findGuest(b.dataset.unseat).table = null;
