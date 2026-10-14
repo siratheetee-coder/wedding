@@ -11,6 +11,7 @@ const ADMIN_SECRET = process.env.ADMIN_SECRET || 'wedding2025';
 
 const DATA_FILE = path.join(__dirname, 'data', 'registrations.json');
 const LIKES_FILE = path.join(__dirname, 'data', 'likes.json');
+const SEATING_FILE = path.join(__dirname, 'data', 'seating.json');
 const UPLOADS_DIR = path.join(__dirname, 'uploads');
 const GUEST_UPLOADS_DIR = path.join(__dirname, 'uploads', 'guest');
 
@@ -44,7 +45,7 @@ const guestStorage = multer.diskStorage({
 const uploadGuest = multer({ storage: guestStorage, limits: { fileSize: 10 * 1024 * 1024 }, fileFilter: imageFilter });
 
 app.use(cors());
-app.use(express.json());
+app.use(express.json({ limit: '2mb' }));
 app.use(express.static(__dirname));
 app.use('/uploads', express.static(UPLOADS_DIR));
 
@@ -223,6 +224,31 @@ app.delete('/api/guest-photos/:filename', (req, res) => {
   const filepath = path.join(GUEST_UPLOADS_DIR, req.params.filename);
   if (fs.existsSync(filepath)) fs.unlinkSync(filepath);
   res.json({ success: true });
+});
+
+// Seating plan (admin only) — whole plan stored as one JSON document
+app.get('/api/seating', (req, res) => {
+  if (req.query.secret !== ADMIN_SECRET) {
+    return res.status(401).json({ error: 'Unauthorized' });
+  }
+  try {
+    res.json({ seating: JSON.parse(fs.readFileSync(SEATING_FILE, 'utf8')) });
+  } catch {
+    res.json({ seating: null });
+  }
+});
+
+app.put('/api/seating', (req, res) => {
+  if (req.query.secret !== ADMIN_SECRET) {
+    return res.status(401).json({ error: 'Unauthorized' });
+  }
+  const seating = req.body;
+  if (!seating || !Array.isArray(seating.guests)) {
+    return res.status(400).json({ error: 'invalid seating data' });
+  }
+  seating.updatedAt = new Date().toISOString();
+  fs.writeFileSync(SEATING_FILE, JSON.stringify(seating, null, 2), 'utf8');
+  res.json({ success: true, updatedAt: seating.updatedAt });
 });
 
 app.listen(PORT, () => {

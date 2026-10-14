@@ -1,0 +1,1043 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>จัดโต๊ะแขก — Wedding Seating</title>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;500&family=Sarabun:wght@300;400;500;600&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --cream: #faf8f5;
+      --beige: #f0ebe3;
+      --border: #e0d5c8;
+      --accent: #8b6e5a;
+      --accent-dark: #6b5144;
+      --text: #2c2c2c;
+      --text-muted: #7a7268;
+      --ok: #6a8f5c;
+      --warn: #c9973a;
+      --danger: #c0392b;
+    }
+    body { font-family: 'Sarabun', sans-serif; background: var(--cream); color: var(--text); min-height: 100vh; }
+    button { font-family: inherit; }
+    input, select, textarea { font-family: inherit; font-size: 0.92rem; }
+
+    /* LOGIN */
+    #loginScreen { min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 24px; }
+    .login-card { background: white; border: 1px solid var(--border); border-radius: 4px; padding: 52px 44px; max-width: 380px; width: 100%; text-align: center; }
+    .login-icon { font-size: 2rem; margin-bottom: 16px; }
+    .login-title { font-family: 'Playfair Display', serif; font-size: 1.5rem; margin-bottom: 8px; }
+    .login-subtitle { color: var(--text-muted); font-size: 0.88rem; margin-bottom: 28px; }
+    .login-card input { width: 100%; padding: 12px 16px; border: 1px solid var(--border); border-radius: 2px; margin-bottom: 12px; }
+    .login-card input:focus { outline: none; border-color: var(--accent); }
+    .login-error { color: var(--danger); font-size: 0.82rem; margin-top: 10px; display: none; }
+    .login-error.visible { display: block; }
+
+    /* BUTTONS */
+    .btn { padding: 8px 14px; border-radius: 2px; font-size: 0.82rem; cursor: pointer; transition: all 0.2s; letter-spacing: 0.03em; border: 1px solid var(--border); background: white; color: var(--text); white-space: nowrap; }
+    .btn:hover { border-color: var(--accent); color: var(--accent); }
+    .btn-primary { background: var(--accent); border-color: var(--accent); color: white; }
+    .btn-primary:hover { background: var(--accent-dark); color: white; }
+    .btn-danger { color: var(--danger); border-color: #e8c4bf; }
+    .btn-danger:hover { background: var(--danger); color: white; border-color: var(--danger); }
+    .btn-block { width: 100%; padding: 13px; }
+    .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    /* APP LAYOUT */
+    #app { display: none; height: 100vh; flex-direction: column; }
+    .header { background: white; border-bottom: 1px solid var(--border); padding: 12px 20px; display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
+    .header-title { font-family: 'Playfair Display', serif; font-size: 1.2rem; margin-right: auto; }
+    .header-title small { font-family: 'Sarabun', sans-serif; font-size: 0.75rem; color: var(--text-muted); margin-left: 8px; }
+    .save-status { font-size: 0.75rem; color: var(--text-muted); }
+    .save-status.error { color: var(--danger); }
+    .toolbar { display: flex; gap: 6px; flex-wrap: wrap; }
+
+    .stats { display: flex; gap: 10px; padding: 12px 20px; background: var(--beige); border-bottom: 1px solid var(--border); flex-wrap: wrap; align-items: center; }
+    .stat { background: white; border: 1px solid var(--border); border-radius: 3px; padding: 6px 14px; min-width: 110px; }
+    .stat-value { font-family: 'Playfair Display', serif; font-size: 1.25rem; }
+    .stat-label { font-size: 0.72rem; color: var(--text-muted); }
+    .progress { flex: 1; min-width: 180px; }
+    .progress-bar { height: 8px; background: white; border: 1px solid var(--border); border-radius: 4px; overflow: hidden; }
+    .progress-fill { height: 100%; background: var(--accent); transition: width 0.3s; }
+    .progress-text { font-size: 0.75rem; color: var(--text-muted); margin-top: 4px; }
+
+    .main { flex: 1; display: flex; min-height: 0; }
+
+    /* SIDEBAR — guest list */
+    .sidebar { width: 320px; background: white; border-right: 1px solid var(--border); display: flex; flex-direction: column; min-height: 0; }
+    .sidebar-head { padding: 12px; border-bottom: 1px solid var(--border); display: flex; flex-direction: column; gap: 8px; }
+    .seg { display: flex; border: 1px solid var(--border); border-radius: 2px; overflow: hidden; }
+    .seg button { flex: 1; padding: 6px; border: none; background: white; font-size: 0.8rem; cursor: pointer; color: var(--text-muted); }
+    .seg button.active { background: var(--accent); color: white; }
+    .field { width: 100%; padding: 8px 10px; border: 1px solid var(--border); border-radius: 2px; background: white; }
+    .field:focus { outline: none; border-color: var(--accent); }
+    .row { display: flex; gap: 6px; }
+    .guest-list { flex: 1; overflow-y: auto; padding: 6px; }
+    .guest { display: flex; align-items: center; gap: 8px; padding: 7px 8px; border-radius: 3px; border: 1px solid transparent; cursor: grab; user-select: none; }
+    .guest:hover { background: var(--cream); }
+    .guest.selected { background: #f3ebe2; border-color: var(--accent); }
+    .guest.dragging { opacity: 0.4; }
+    .guest-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+    .guest-info { flex: 1; min-width: 0; }
+    .guest-name { font-size: 0.88rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .guest-meta { font-size: 0.72rem; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .guest-count { font-size: 0.75rem; background: var(--beige); border-radius: 10px; padding: 1px 8px; flex-shrink: 0; }
+    .guest-table { font-size: 0.72rem; color: var(--accent); flex-shrink: 0; }
+    .guest-edit { border: none; background: none; cursor: pointer; color: var(--text-muted); font-size: 0.85rem; padding: 2px 4px; }
+    .guest-edit:hover { color: var(--accent); }
+    .sidebar-foot { padding: 10px 12px; border-top: 1px solid var(--border); font-size: 0.75rem; color: var(--text-muted); }
+    .empty { text-align: center; color: var(--text-muted); font-size: 0.85rem; padding: 32px 12px; line-height: 1.7; }
+
+    /* TABLE GRID */
+    .tables-wrap { flex: 1; overflow-y: auto; padding: 16px 20px 40px; }
+    .tables-head { display: flex; gap: 8px; align-items: center; margin-bottom: 12px; flex-wrap: wrap; }
+    .tables-head .field { width: auto; }
+    .hint { font-size: 0.78rem; color: var(--text-muted); }
+    .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 10px; }
+    .table-card { background: white; border: 1px solid var(--border); border-radius: 4px; padding: 10px 12px; cursor: pointer; transition: border-color 0.15s, box-shadow 0.15s; min-height: 132px; display: flex; flex-direction: column; }
+    .table-card:hover { border-color: var(--accent); }
+    .table-card.drop-ok { border-color: var(--ok); box-shadow: 0 0 0 2px #6a8f5c33; }
+    .table-card.drop-bad { border-color: var(--danger); box-shadow: 0 0 0 2px #c0392b33; }
+    .table-card.full { background: #fbfaf7; }
+    .table-card.over { border-color: var(--danger); }
+    .table-card.dim { opacity: 0.35; }
+    .table-card.target { border-style: dashed; border-color: var(--accent); }
+    .tc-head { display: flex; justify-content: space-between; align-items: baseline; gap: 6px; }
+    .tc-no { font-family: 'Playfair Display', serif; font-size: 1.05rem; }
+    .tc-name { font-size: 0.72rem; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex: 1; }
+    .tc-cap { font-size: 0.78rem; font-weight: 600; }
+    .tc-cap.full { color: var(--ok); }
+    .tc-cap.over { color: var(--danger); }
+    .seats { display: flex; gap: 3px; margin: 6px 0 6px; }
+    .seat { flex: 1; height: 6px; border-radius: 3px; background: var(--beige); }
+    .tc-guests { font-size: 0.76rem; line-height: 1.45; color: var(--text); }
+    .tc-guests div { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .tc-guests .more { color: var(--text-muted); }
+
+    /* MODAL */
+    .modal-bg { position: fixed; inset: 0; background: rgba(44,44,44,0.45); display: none; align-items: center; justify-content: center; padding: 16px; z-index: 50; }
+    .modal-bg.open { display: flex; }
+    .modal { background: white; border-radius: 4px; width: 100%; max-width: 520px; max-height: 90vh; overflow-y: auto; padding: 24px; }
+    .modal h2 { font-family: 'Playfair Display', serif; font-weight: 400; font-size: 1.3rem; margin-bottom: 4px; }
+    .modal p.sub { color: var(--text-muted); font-size: 0.82rem; margin-bottom: 16px; line-height: 1.6; }
+    .modal label { display: block; font-size: 0.78rem; color: var(--text-muted); margin: 10px 0 4px; }
+    .modal textarea { width: 100%; min-height: 200px; padding: 10px; border: 1px solid var(--border); border-radius: 2px; resize: vertical; font-size: 0.85rem; line-height: 1.5; }
+    .modal-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 18px; flex-wrap: wrap; }
+    .modal-actions .left { margin-right: auto; }
+    .code { background: var(--cream); border: 1px solid var(--border); border-radius: 2px; padding: 8px 10px; font-size: 0.78rem; line-height: 1.6; color: var(--text-muted); }
+    .member { display: flex; align-items: center; gap: 8px; padding: 8px 0; border-bottom: 1px solid var(--beige); }
+    .member:last-child { border-bottom: none; }
+    .member .guest-info { flex: 1; }
+    .preview { font-size: 0.8rem; color: var(--text-muted); margin-top: 6px; }
+    .preview.error { color: var(--danger); }
+
+    .toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%) translateY(20px); background: var(--text); color: white; padding: 10px 20px; border-radius: 3px; font-size: 0.85rem; opacity: 0; pointer-events: none; transition: all 0.25s; z-index: 60; max-width: 90vw; }
+    .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+    .mobile-tabs { display: none; }
+
+    @media (max-width: 760px) {
+      .header { padding: 10px 16px; }
+      .header-title { width: 100%; }
+      .toolbar { flex-wrap: nowrap; overflow-x: auto; width: 100%; padding-bottom: 2px; }
+      .stats { padding: 10px 16px; display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
+      .stat { min-width: 0; padding: 6px 8px; }
+      .stat-value { font-size: 1.05rem; }
+      .stat-label { font-size: 0.66rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+      .progress { grid-column: 1 / -1; }
+      .mobile-tabs { display: flex; border-bottom: 1px solid var(--border); background: white; }
+      .mobile-tabs button { flex: 1; padding: 10px; border: none; background: none; font-size: 0.85rem; color: var(--text-muted); border-bottom: 2px solid transparent; }
+      .mobile-tabs button.active { color: var(--accent); border-bottom-color: var(--accent); }
+      .sidebar { width: 100%; border-right: none; }
+      .main[data-view="tables"] .sidebar { display: none; }
+      .main[data-view="guests"] .tables-wrap { display: none; }
+      .tables-wrap { padding: 12px 16px 40px; }
+      .grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+    }
+
+    /* PRINT */
+    #printArea { display: none; }
+    @media print {
+      body { background: white; }
+      #app, .modal-bg, .toast, #loginScreen { display: none !important; }
+      #printArea { display: block; font-size: 10pt; }
+      #printArea h1 { font-family: 'Playfair Display', serif; font-size: 16pt; margin-bottom: 10px; }
+      .print-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+      .print-table { border: 1px solid #999; padding: 6px 8px; break-inside: avoid; }
+      .print-table b { display: block; border-bottom: 1px solid #ccc; margin-bottom: 3px; }
+      .print-break { page-break-before: always; }
+      .print-list { columns: 3; column-gap: 20px; }
+      .print-list div { break-inside: avoid; padding: 1px 0; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- LOGIN -->
+<div id="loginScreen">
+  <div class="login-card">
+    <div class="login-icon">🪑</div>
+    <h1 class="login-title">จัดโต๊ะแขก</h1>
+    <p class="login-subtitle">กรอก Secret ของ Admin เพื่อเข้าใช้งาน</p>
+    <input type="password" id="secretInput" placeholder="Admin secret" />
+    <button class="btn btn-primary btn-block" id="loginBtn">เข้าสู่ระบบ</button>
+    <div class="login-error" id="loginError">Secret ไม่ถูกต้อง</div>
+  </div>
+</div>
+
+<!-- APP -->
+<div id="app">
+  <div class="header">
+    <div class="header-title">Seating Plan <small id="layoutLabel">90 โต๊ะ × 8 ที่นั่ง</small></div>
+    <span class="save-status" id="saveStatus"></span>
+    <div class="toolbar">
+      <button class="btn btn-primary" id="importBtn">＋ นำเข้ารายชื่อ</button>
+      <button class="btn" id="addGuestBtn">＋ เพิ่มแขก</button>
+      <button class="btn" id="rsvpBtn">ดึงจาก RSVP</button>
+      <button class="btn" id="autoBtn">✦ จัดอัตโนมัติ</button>
+      <button class="btn" id="exportBtn">↓ CSV</button>
+      <button class="btn" id="printBtn">พิมพ์</button>
+      <button class="btn" id="settingsBtn">ตั้งค่า</button>
+      <a class="btn" href="/admin.html" style="text-decoration:none">Admin</a>
+    </div>
+  </div>
+
+  <div class="stats">
+    <div class="stat"><div class="stat-value" id="sGuests">0</div><div class="stat-label">แขกทั้งหมด (คน)</div></div>
+    <div class="stat"><div class="stat-value" id="sSeated">0</div><div class="stat-label">จัดที่นั่งแล้ว</div></div>
+    <div class="stat"><div class="stat-value" id="sUnseated">0</div><div class="stat-label">ยังไม่ได้จัด</div></div>
+    <div class="stat"><div class="stat-value" id="sTables">0</div><div class="stat-label">โต๊ะที่ใช้</div></div>
+    <div class="progress">
+      <div class="progress-bar"><div class="progress-fill" id="pFill" style="width:0"></div></div>
+      <div class="progress-text" id="pText"></div>
+    </div>
+  </div>
+
+  <div class="mobile-tabs">
+    <button data-view="guests" class="active">รายชื่อแขก</button>
+    <button data-view="tables">โต๊ะ</button>
+  </div>
+
+  <div class="main" id="main" data-view="guests">
+    <aside class="sidebar">
+      <div class="sidebar-head">
+        <div class="seg" id="listFilter">
+          <button data-f="unseated" class="active">ยังไม่จัด</button>
+          <button data-f="seated">จัดแล้ว</button>
+          <button data-f="all">ทั้งหมด</button>
+        </div>
+        <input class="field" id="guestSearch" placeholder="ค้นหาชื่อแขก…" />
+        <div class="row">
+          <select class="field" id="groupFilter"><option value="">ทุกกลุ่ม</option></select>
+          <select class="field" id="sideFilter">
+            <option value="">ทุกฝ่าย</option>
+            <option value="เจ้าบ่าว">เจ้าบ่าว</option>
+            <option value="เจ้าสาว">เจ้าสาว</option>
+            <option value="ร่วม">ร่วม</option>
+          </select>
+        </div>
+      </div>
+      <div class="guest-list" id="guestList"></div>
+      <div class="sidebar-foot" id="selFoot">ลากชื่อไปวางบนโต๊ะ หรือแตะเลือกชื่อแล้วแตะโต๊ะ</div>
+    </aside>
+
+    <section class="tables-wrap">
+      <div class="tables-head">
+        <input class="field" id="tableSearch" placeholder="ค้นหาโต๊ะ / ชื่อแขก" style="max-width:220px" />
+        <select class="field" id="tableFilter">
+          <option value="">ทุกโต๊ะ</option>
+          <option value="empty">โต๊ะว่าง</option>
+          <option value="partial">ยังไม่เต็ม</option>
+          <option value="full">เต็มแล้ว</option>
+          <option value="over">เกินจำนวน</option>
+        </select>
+        <span class="hint" id="tableHint"></span>
+      </div>
+      <div class="grid" id="grid"></div>
+    </section>
+  </div>
+</div>
+
+<!-- IMPORT MODAL -->
+<div class="modal-bg" id="importModal">
+  <div class="modal">
+    <h2>นำเข้ารายชื่อแขก</h2>
+    <p class="sub">วางรายชื่อ 1 บรรทัดต่อ 1 กลุ่มแขก — คัดลอกจาก Excel / Google Sheets มาวางได้เลย (คั่นด้วย Tab หรือ ,)</p>
+    <div class="code">ชื่อ, จำนวนคน, กลุ่ม, ฝ่าย, หมายเหตุ<br>คุณสมชาย ใจดี, 2, เพื่อนที่ทำงาน, เจ้าบ่าว<br>ครอบครัวป้าแดง, 5, ญาติ, เจ้าสาว, มีเด็ก 2<br>คุณนิด</div>
+    <label>รายชื่อ</label>
+    <textarea id="importText" placeholder="วางรายชื่อที่นี่…"></textarea>
+    <div class="preview" id="importPreview"></div>
+    <div class="modal-actions">
+      <label class="left" style="margin:0;display:flex;align-items:center;gap:6px;cursor:pointer"><input type="file" id="importFile" accept=".csv,.txt,.tsv" style="display:none" /><span class="btn">เลือกไฟล์ CSV</span></label>
+      <button class="btn" data-close>ยกเลิก</button>
+      <button class="btn btn-primary" id="importConfirm">นำเข้า</button>
+    </div>
+  </div>
+</div>
+
+<!-- GUEST MODAL -->
+<div class="modal-bg" id="guestModal">
+  <div class="modal">
+    <h2 id="guestModalTitle">เพิ่มแขก</h2>
+    <label>ชื่อ</label>
+    <input class="field" id="gName" />
+    <div class="row">
+      <div style="flex:1"><label>จำนวนคน</label><input class="field" id="gCount" type="number" min="1" value="1" /></div>
+      <div style="flex:1"><label>ฝ่าย</label>
+        <select class="field" id="gSide"><option value="">—</option><option>เจ้าบ่าว</option><option>เจ้าสาว</option><option>ร่วม</option></select>
+      </div>
+    </div>
+    <label>กลุ่ม (เช่น ญาติ, เพื่อนมหาลัย, ที่ทำงาน)</label>
+    <input class="field" id="gGroup" list="groupOptions" />
+    <datalist id="groupOptions"></datalist>
+    <label>โต๊ะ</label>
+    <select class="field" id="gTable"></select>
+    <label>หมายเหตุ</label>
+    <input class="field" id="gNote" />
+    <div class="modal-actions">
+      <button class="btn btn-danger left" id="gDelete">ลบแขก</button>
+      <button class="btn" data-close>ยกเลิก</button>
+      <button class="btn btn-primary" id="gSave">บันทึก</button>
+    </div>
+  </div>
+</div>
+
+<!-- TABLE MODAL -->
+<div class="modal-bg" id="tableModal">
+  <div class="modal">
+    <h2 id="tmTitle">โต๊ะ</h2>
+    <p class="sub" id="tmSub"></p>
+    <div class="row">
+      <div style="flex:2"><label>ชื่อโต๊ะ (ไม่บังคับ)</label><input class="field" id="tmName" placeholder="เช่น โต๊ะครอบครัวเจ้าสาว" /></div>
+      <div style="flex:1"><label>ที่นั่ง</label><input class="field" id="tmCap" type="number" min="1" /></div>
+    </div>
+    <label>แขกในโต๊ะนี้</label>
+    <div id="tmMembers"></div>
+    <label>เพิ่มแขกที่ยังไม่ได้จัด</label>
+    <select class="field" id="tmAdd"></select>
+    <div class="modal-actions">
+      <button class="btn btn-danger left" id="tmClear">ล้างโต๊ะ</button>
+      <button class="btn btn-primary" data-close>เสร็จ</button>
+    </div>
+  </div>
+</div>
+
+<!-- AUTO MODAL -->
+<div class="modal-bg" id="autoModal">
+  <div class="modal">
+    <h2>จัดโต๊ะอัตโนมัติ</h2>
+    <p class="sub">จัดเฉพาะแขกที่ยังไม่มีโต๊ะ โดยพยายามให้คนกลุ่มเดียวกันนั่งด้วยกัน และไม่แยกครอบครัว/กลุ่มที่มาด้วยกัน — แขกที่จัดไว้แล้วจะไม่ถูกย้าย</p>
+    <label>เรียงตาม</label>
+    <select class="field" id="autoOrder">
+      <option value="side-group">ฝ่าย → กลุ่ม (แยกโซนเจ้าบ่าว / เจ้าสาว)</option>
+      <option value="group">กลุ่ม</option>
+    </select>
+    <label>เริ่มจากโต๊ะที่</label>
+    <input class="field" id="autoStart" type="number" min="1" value="1" />
+    <div class="modal-actions">
+      <button class="btn btn-danger left" id="resetAll">ล้างการจัดทุกโต๊ะ</button>
+      <button class="btn" data-close>ยกเลิก</button>
+      <button class="btn btn-primary" id="autoRun">จัดเลย</button>
+    </div>
+  </div>
+</div>
+
+<!-- SETTINGS MODAL -->
+<div class="modal-bg" id="settingsModal">
+  <div class="modal">
+    <h2>ตั้งค่า</h2>
+    <div class="row">
+      <div style="flex:1"><label>จำนวนโต๊ะ</label><input class="field" id="setTables" type="number" min="1" max="500" /></div>
+      <div style="flex:1"><label>ที่นั่งต่อโต๊ะ (ค่าเริ่มต้น)</label><input class="field" id="setCap" type="number" min="1" max="30" /></div>
+    </div>
+    <label>สำรองข้อมูล</label>
+    <div class="row">
+      <button class="btn" id="backupBtn">↓ ดาวน์โหลด JSON</button>
+      <label class="btn" style="margin:0;color:inherit;font-size:0.82rem">↑ กู้คืนจาก JSON<input type="file" id="restoreFile" accept=".json" style="display:none" /></label>
+    </div>
+    <label>ลบข้อมูล</label>
+    <button class="btn btn-danger" id="wipeBtn">ลบแขกทั้งหมด</button>
+    <div class="modal-actions">
+      <button class="btn" data-close>ยกเลิก</button>
+      <button class="btn btn-primary" id="setSave">บันทึก</button>
+    </div>
+  </div>
+</div>
+
+<div id="printArea"></div>
+<div class="toast" id="toast"></div>
+
+<script>
+(() => {
+  const $ = (id) => document.getElementById(id);
+  const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  const uid = () => Math.random().toString(36).slice(2, 10) + Date.now().toString(36).slice(-4);
+  const LOCAL_KEY = 'wedding_seating_backup';
+
+  let SECRET = '';
+  let state = null;
+  let listFilter = 'unseated';
+  let selected = new Set();   // guest ids selected for tap-to-assign
+  let openTable = null;
+  let editingGuest = null;
+
+  const defaultState = () => ({ version: 1, tableCount: 90, capacity: 8, tables: {}, guests: [], updatedAt: null });
+
+  // ---------- toast ----------
+  function toast(msg, ms = 2600) {
+    const t = $('toast');
+    t.textContent = msg;
+    t.classList.add('show');
+    clearTimeout(toast._t);
+    toast._t = setTimeout(() => t.classList.remove('show'), ms);
+  }
+
+  // ---------- helpers ----------
+  const capOf = (n) => state.tables[n]?.capacity || state.capacity;
+  const nameOf = (n) => state.tables[n]?.name || '';
+  const guestsAt = (n) => state.guests.filter((g) => g.table === n);
+  const usedAt = (n) => guestsAt(n).reduce((s, g) => s + g.count, 0);
+  const totalPeople = () => state.guests.reduce((s, g) => s + g.count, 0);
+  const groups = () => [...new Set(state.guests.map((g) => g.group).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'th'));
+
+  const PALETTE = ['#8b6e5a', '#6a8f5c', '#5a7a9b', '#b5674d', '#8a6aa0', '#c9973a', '#4f8f8a', '#a05a72', '#7a8a3c', '#5c6bb0'];
+  function colorOf(group) {
+    if (!group) return '#cfc6bb';
+    let h = 0;
+    for (const ch of group) h = (h * 31 + ch.charCodeAt(0)) >>> 0;
+    return PALETTE[h % PALETTE.length];
+  }
+
+  // ---------- persistence ----------
+  let saveTimer = null;
+  function setStatus(text, isError) {
+    const el = $('saveStatus');
+    el.textContent = text;
+    el.classList.toggle('error', !!isError);
+  }
+  function persist() {
+    try { localStorage.setItem(LOCAL_KEY, JSON.stringify(state)); } catch {}
+    setStatus('กำลังบันทึก…');
+    clearTimeout(saveTimer);
+    saveTimer = setTimeout(saveRemote, 700);
+  }
+  async function saveRemote() {
+    try {
+      const res = await fetch(`/api/seating?secret=${encodeURIComponent(SECRET)}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(state),
+      });
+      if (!res.ok) throw new Error(res.status);
+      const data = await res.json();
+      state.updatedAt = data.updatedAt;
+      setStatus('บันทึกแล้ว ' + new Date(data.updatedAt).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' }));
+    } catch {
+      setStatus('บันทึกขึ้นเซิร์ฟเวอร์ไม่สำเร็จ (เก็บสำรองในเครื่องแล้ว)', true);
+    }
+  }
+  window.addEventListener('beforeunload', (e) => {
+    if (saveTimer && $('saveStatus').textContent === 'กำลังบันทึก…') { e.preventDefault(); e.returnValue = ''; }
+  });
+
+  async function loadState() {
+    let remote = null;
+    try {
+      const res = await fetch(`/api/seating?secret=${encodeURIComponent(SECRET)}`);
+      if (res.status === 401) return 'wrong';
+      if (!res.ok) throw new Error(res.status);
+      remote = (await res.json()).seating;
+    } catch (e) {
+      if (e instanceof TypeError) return 'network';
+    }
+    let local = null;
+    try { local = JSON.parse(localStorage.getItem(LOCAL_KEY) || 'null'); } catch {}
+    // Prefer the server copy; fall back to a local backup if the server has nothing yet
+    state = remote || local || defaultState();
+    state = Object.assign(defaultState(), state);
+    if (!remote && local && local.guests?.length) persist();
+    return 'ok';
+  }
+
+  // ---------- login ----------
+  async function tryLogin(secret) {
+    SECRET = secret;
+    const r = await loadState();
+    if (r === 'ok') {
+      sessionStorage.setItem('wedding_secret', secret);
+      $('loginScreen').style.display = 'none';
+      $('app').style.display = 'flex';
+      if (state.updatedAt) setStatus('อัปเดตล่าสุด ' + new Date(state.updatedAt).toLocaleString('th-TH', { dateStyle: 'short', timeStyle: 'short' }));
+      render();
+    }
+    return r;
+  }
+  $('loginBtn').addEventListener('click', async () => {
+    const val = $('secretInput').value.trim();
+    if (!val) return;
+    const r = await tryLogin(val);
+    const err = $('loginError');
+    if (r === 'ok') return err.classList.remove('visible');
+    err.textContent = r === 'network' ? 'เชื่อมต่อเซิร์ฟเวอร์ไม่ได้' : 'Secret ไม่ถูกต้อง';
+    err.classList.add('visible');
+  });
+  $('secretInput').addEventListener('keydown', (e) => { if (e.key === 'Enter') $('loginBtn').click(); });
+  const savedSecret = sessionStorage.getItem('wedding_secret');
+  if (savedSecret) tryLogin(savedSecret);
+
+  // ---------- render ----------
+  function render() {
+    renderStats();
+    renderGuestList();
+    renderGrid();
+    renderGroupFilter();
+  }
+
+  function renderStats() {
+    const total = totalPeople();
+    const seated = state.guests.filter((g) => g.table).reduce((s, g) => s + g.count, 0);
+    let seats = 0, used = 0;
+    for (let n = 1; n <= state.tableCount; n++) { seats += capOf(n); if (usedAt(n) > 0) used++; }
+    $('sGuests').textContent = total;
+    $('sSeated').textContent = seated;
+    $('sUnseated').textContent = total - seated;
+    $('sTables').textContent = `${used}/${state.tableCount}`;
+    $('pFill').style.width = seats ? Math.min(100, (seated / seats) * 100) + '%' : 0;
+    const free = seats - seated;
+    $('pText').textContent = `ใช้ไป ${seated} จาก ${seats} ที่นั่ง · ว่าง ${free} ที่` + (total > seats ? ` · ⚠ แขกเกินที่นั่ง ${total - seats} คน` : '');
+    $('layoutLabel').textContent = `${state.tableCount} โต๊ะ × ${state.capacity} ที่นั่ง`;
+  }
+
+  function renderGroupFilter() {
+    const sel = $('groupFilter'), cur = sel.value;
+    const gs = groups();
+    sel.innerHTML = '<option value="">ทุกกลุ่ม</option>' + gs.map((g) => `<option${g === cur ? ' selected' : ''}>${esc(g)}</option>`).join('');
+    $('groupOptions').innerHTML = gs.map((g) => `<option value="${esc(g)}">`).join('');
+  }
+
+  function filteredGuests() {
+    const q = $('guestSearch').value.trim().toLowerCase();
+    const gf = $('groupFilter').value, sf = $('sideFilter').value;
+    return state.guests.filter((g) => {
+      if (listFilter === 'unseated' && g.table) return false;
+      if (listFilter === 'seated' && !g.table) return false;
+      if (gf && g.group !== gf) return false;
+      if (sf && g.side !== sf) return false;
+      if (q && !(`${g.name} ${g.group} ${g.note}`.toLowerCase().includes(q))) return false;
+      return true;
+    });
+  }
+
+  function renderGuestList() {
+    const list = filteredGuests();
+    const el = $('guestList');
+    if (!state.guests.length) {
+      el.innerHTML = `<div class="empty">ยังไม่มีรายชื่อแขก<br>กด <b>＋ นำเข้ารายชื่อ</b> เพื่อวางรายชื่อจาก Excel<br>หรือ <b>ดึงจาก RSVP</b> จากผู้ลงทะเบียนบนเว็บ</div>`;
+    } else if (!list.length) {
+      el.innerHTML = `<div class="empty">${listFilter === 'unseated' ? '🎉 จัดที่นั่งครบทุกคนแล้ว' : 'ไม่พบรายชื่อ'}</div>`;
+    } else {
+      el.innerHTML = list.map((g) => `
+        <div class="guest${selected.has(g.id) ? ' selected' : ''}" draggable="true" data-id="${g.id}">
+          <span class="guest-dot" style="background:${colorOf(g.group)}"></span>
+          <div class="guest-info">
+            <div class="guest-name">${esc(g.name)}</div>
+            <div class="guest-meta">${esc([g.side, g.group, g.note].filter(Boolean).join(' · ') || '—')}</div>
+          </div>
+          ${g.table ? `<span class="guest-table">โต๊ะ ${g.table}</span>` : ''}
+          <span class="guest-count">${g.count}</span>
+          <button class="guest-edit" data-edit="${g.id}" title="แก้ไข">✎</button>
+        </div>`).join('');
+    }
+    const selPeople = [...selected].map(findGuest).filter(Boolean).reduce((s, g) => s + g.count, 0);
+    $('selFoot').innerHTML = selected.size
+      ? `เลือก ${selected.size} รายการ (${selPeople} คน) — แตะโต๊ะเพื่อจัดลง · <a href="#" id="clearSel">ยกเลิก</a>`
+      : 'ลากชื่อไปวางบนโต๊ะ หรือแตะเลือกชื่อแล้วแตะโต๊ะ';
+    $('tableHint').textContent = selected.size ? `เลือกแล้ว ${selPeople} คน — แตะโต๊ะที่ต้องการ` : '';
+  }
+
+  function tableMatches(n) {
+    const q = $('tableSearch').value.trim().toLowerCase();
+    const f = $('tableFilter').value;
+    const used = usedAt(n), cap = capOf(n);
+    if (f === 'empty' && used) return false;
+    if (f === 'partial' && (used === 0 || used >= cap)) return false;
+    if (f === 'full' && used !== cap) return false;
+    if (f === 'over' && used <= cap) return false;
+    if (q) {
+      const hay = [String(n), nameOf(n), ...guestsAt(n).map((g) => g.name)].join(' ').toLowerCase();
+      if (!hay.includes(q)) return false;
+    }
+    return true;
+  }
+
+  function renderGrid() {
+    const selPeople = [...selected].map(findGuest).filter(Boolean).reduce((s, g) => s + g.count, 0);
+    let html = '';
+    for (let n = 1; n <= state.tableCount; n++) {
+      if (!tableMatches(n)) continue;
+      const gs = guestsAt(n), cap = capOf(n), used = gs.reduce((s, g) => s + g.count, 0);
+      const seats = [];
+      let i = 0;
+      for (const g of gs) for (let k = 0; k < g.count; k++) seats.push(colorOf(g.group)), i++;
+      const bars = Array.from({ length: Math.max(cap, used) }, (_, k) => `<span class="seat" style="${seats[k] ? `background:${seats[k]}` : ''}"></span>`).join('');
+      const cls = ['table-card'];
+      if (used === cap) cls.push('full');
+      if (used > cap) cls.push('over');
+      if (selected.size) cls.push(used + selPeople <= cap ? 'target' : 'dim');
+      const shown = gs.slice(0, 4);
+      html += `
+        <div class="${cls.join(' ')}" data-table="${n}">
+          <div class="tc-head">
+            <span class="tc-no">${n}</span>
+            <span class="tc-name">${esc(nameOf(n))}</span>
+            <span class="tc-cap ${used > cap ? 'over' : used === cap ? 'full' : ''}">${used}/${cap}</span>
+          </div>
+          <div class="seats">${bars}</div>
+          <div class="tc-guests">
+            ${shown.map((g) => `<div>${esc(g.name)}${g.count > 1 ? ` <span class="more">×${g.count}</span>` : ''}</div>`).join('')}
+            ${gs.length > shown.length ? `<div class="more">+ อีก ${gs.length - shown.length} รายการ</div>` : ''}
+            ${!gs.length ? '<div class="more">ว่าง</div>' : ''}
+          </div>
+        </div>`;
+    }
+    $('grid').innerHTML = html || '<div class="empty">ไม่พบโต๊ะ</div>';
+  }
+
+  const findGuest = (id) => state.guests.find((g) => g.id === id);
+
+  // ---------- assign ----------
+  function assign(ids, table) {
+    const gs = ids.map(findGuest).filter(Boolean);
+    const moving = gs.filter((g) => g.table !== table);
+    if (!moving.length) return;
+    const need = moving.reduce((s, g) => s + g.count, 0);
+    const after = usedAt(table) + need, cap = capOf(table);
+    if (after > cap && !confirm(`โต๊ะ ${table} จะมี ${after} คน (เกิน ${cap} ที่นั่ง) — ยืนยันจัดลงหรือไม่?`)) return;
+    moving.forEach((g) => (g.table = table));
+    selected.clear();
+    persist();
+    render();
+    toast(`จัด ${need} คนลงโต๊ะ ${table} แล้ว`);
+  }
+
+  // guest list interactions
+  $('guestList').addEventListener('click', (e) => {
+    const edit = e.target.closest('[data-edit]');
+    if (edit) return openGuestModal(edit.dataset.edit);
+    const row = e.target.closest('.guest');
+    if (!row) return;
+    const id = row.dataset.id;
+    selected.has(id) ? selected.delete(id) : selected.add(id);
+    renderGuestList();
+    renderGrid();
+  });
+  $('selFoot').addEventListener('click', (e) => {
+    if (e.target.id === 'clearSel') { e.preventDefault(); selected.clear(); renderGuestList(); renderGrid(); }
+  });
+
+  let dragIds = [];
+  $('guestList').addEventListener('dragstart', (e) => {
+    const row = e.target.closest('.guest');
+    if (!row) return;
+    const id = row.dataset.id;
+    dragIds = selected.has(id) ? [...selected] : [id];
+    e.dataTransfer.setData('text/plain', dragIds.join(','));
+    e.dataTransfer.effectAllowed = 'move';
+    row.classList.add('dragging');
+  });
+  $('guestList').addEventListener('dragend', (e) => {
+    e.target.closest('.guest')?.classList.remove('dragging');
+    document.querySelectorAll('.drop-ok,.drop-bad').forEach((x) => x.classList.remove('drop-ok', 'drop-bad'));
+  });
+  $('grid').addEventListener('dragover', (e) => {
+    const card = e.target.closest('.table-card');
+    if (!card) return;
+    e.preventDefault();
+    const n = +card.dataset.table;
+    const need = dragIds.map(findGuest).filter((g) => g && g.table !== n).reduce((s, g) => s + g.count, 0);
+    card.classList.toggle('drop-ok', usedAt(n) + need <= capOf(n));
+    card.classList.toggle('drop-bad', usedAt(n) + need > capOf(n));
+  });
+  $('grid').addEventListener('dragleave', (e) => {
+    const card = e.target.closest('.table-card');
+    if (card && !card.contains(e.relatedTarget)) card.classList.remove('drop-ok', 'drop-bad');
+  });
+  $('grid').addEventListener('drop', (e) => {
+    const card = e.target.closest('.table-card');
+    if (!card) return;
+    e.preventDefault();
+    card.classList.remove('drop-ok', 'drop-bad');
+    assign(dragIds, +card.dataset.table);
+    dragIds = [];
+  });
+  $('grid').addEventListener('click', (e) => {
+    const card = e.target.closest('.table-card');
+    if (!card) return;
+    const n = +card.dataset.table;
+    if (selected.size) return assign([...selected], n);
+    openTableModal(n);
+  });
+
+  // filters
+  $('listFilter').addEventListener('click', (e) => {
+    const b = e.target.closest('button');
+    if (!b) return;
+    listFilter = b.dataset.f;
+    $('listFilter').querySelectorAll('button').forEach((x) => x.classList.toggle('active', x === b));
+    renderGuestList();
+  });
+  ['guestSearch', 'groupFilter', 'sideFilter'].forEach((id) => $(id).addEventListener('input', renderGuestList));
+  ['tableSearch', 'tableFilter'].forEach((id) => $(id).addEventListener('input', renderGrid));
+  document.querySelector('.mobile-tabs').addEventListener('click', (e) => {
+    const b = e.target.closest('button');
+    if (!b) return;
+    $('main').dataset.view = b.dataset.view;
+    document.querySelectorAll('.mobile-tabs button').forEach((x) => x.classList.toggle('active', x === b));
+  });
+
+  // ---------- modals ----------
+  function openModal(id) { $(id).classList.add('open'); }
+  function closeModal(id) { $(id).classList.remove('open'); }
+  document.querySelectorAll('.modal-bg').forEach((m) => {
+    m.addEventListener('click', (e) => {
+      if (e.target === m || e.target.closest('[data-close]')) closeModal(m.id);
+    });
+  });
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') document.querySelectorAll('.modal-bg.open').forEach((m) => closeModal(m.id));
+  });
+
+  // ---------- import ----------
+  function splitLine(line) {
+    // CSV with quotes, or tab-separated (paste from spreadsheet)
+    if (line.includes('\t')) return line.split('\t').map((s) => s.trim());
+    const out = []; let cur = '', q = false;
+    for (let i = 0; i < line.length; i++) {
+      const c = line[i];
+      if (q) {
+        if (c === '"' && line[i + 1] === '"') { cur += '"'; i++; }
+        else if (c === '"') q = false;
+        else cur += c;
+      } else if (c === '"') q = true;
+      else if (c === ',') { out.push(cur.trim()); cur = ''; }
+      else cur += c;
+    }
+    out.push(cur.trim());
+    return out;
+  }
+  function normSide(s) {
+    s = (s || '').trim();
+    if (/บ่าว|groom/i.test(s)) return 'เจ้าบ่าว';
+    if (/สาว|bride/i.test(s)) return 'เจ้าสาว';
+    if (/ร่วม|both|ทั้งสอง/i.test(s)) return 'ร่วม';
+    return s;
+  }
+  function parseImport(text) {
+    const lines = text.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
+    const rows = [];
+    lines.forEach((line, i) => {
+      const cols = splitLine(line);
+      // skip a header row
+      if (i === 0 && /ชื่อ|name/i.test(cols[0]) && (cols.length === 1 || isNaN(parseInt(cols[1])))) return;
+      const name = cols[0];
+      if (!name) return;
+      const count = Math.max(1, parseInt(cols[1]) || 1);
+      rows.push({ name, count, group: cols[2] || '', side: normSide(cols[3]), note: cols[4] || '', table: null });
+    });
+    return rows;
+  }
+  function updateImportPreview() {
+    const rows = parseImport($('importText').value);
+    const people = rows.reduce((s, r) => s + r.count, 0);
+    const big = rows.filter((r) => r.count > state.capacity);
+    const p = $('importPreview');
+    p.classList.toggle('error', big.length > 0);
+    p.textContent = rows.length
+      ? `พบ ${rows.length} รายการ รวม ${people} คน` + (big.length ? ` · ${big.length} รายการมีมากกว่า ${state.capacity} คน จะถูกแบ่งเป็นหลายโต๊ะ` : '')
+      : '';
+  }
+  $('importBtn').addEventListener('click', () => { $('importText').value = ''; updateImportPreview(); openModal('importModal'); $('importText').focus(); });
+  $('importText').addEventListener('input', updateImportPreview);
+  $('importFile').addEventListener('change', async (e) => {
+    const f = e.target.files[0];
+    if (!f) return;
+    $('importText').value = (await f.text()).replace(/^﻿/, '');
+    updateImportPreview();
+    e.target.value = '';
+  });
+  // Parties larger than one table get split into chunks that each fit a table
+  function splitParty(r) {
+    if (r.count <= state.capacity) return [{ ...r, id: uid() }];
+    const parts = [], n = Math.ceil(r.count / state.capacity);
+    let left = r.count;
+    for (let i = 1; i <= n; i++) {
+      const c = Math.min(state.capacity, left);
+      left -= c;
+      parts.push({ ...r, id: uid(), count: c, name: `${r.name} (${i}/${n})` });
+    }
+    return parts;
+  }
+  $('importConfirm').addEventListener('click', () => {
+    const rows = parseImport($('importText').value);
+    if (!rows.length) return toast('ยังไม่มีรายชื่อ');
+    const added = rows.flatMap(splitParty);
+    state.guests.push(...added);
+    persist();
+    closeModal('importModal');
+    render();
+    toast(`นำเข้า ${rows.length} รายการ (${rows.reduce((s, r) => s + r.count, 0)} คน) แล้ว`);
+  });
+
+  // ---------- RSVP ----------
+  $('rsvpBtn').addEventListener('click', async () => {
+    try {
+      const res = await fetch(`/api/registrations?secret=${encodeURIComponent(SECRET)}`);
+      if (!res.ok) throw new Error();
+      const { registrations } = await res.json();
+      const have = new Set(state.guests.map((g) => g.rsvpId).filter(Boolean));
+      const fresh = (registrations || []).filter((r) => !have.has(r.id));
+      if (!fresh.length) return toast('ไม่มีผู้ลงทะเบียนใหม่จาก RSVP');
+      const people = fresh.reduce((s, r) => s + (parseInt(r.guests) || 0) + 1, 0);
+      if (!confirm(`พบผู้ลงทะเบียนใหม่ ${fresh.length} รายการ (${people} คน) — นำเข้าหรือไม่?`)) return;
+      fresh.forEach((r) => {
+        const parts = splitParty({
+          name: r.name, count: (parseInt(r.guests) || 0) + 1, group: 'RSVP', side: '',
+          note: [r.guestName && `มากับ ${r.guestName}`, r.phone].filter(Boolean).join(' · '), table: null,
+        });
+        parts.forEach((p) => (p.rsvpId = r.id));
+        state.guests.push(...parts);
+      });
+      persist();
+      render();
+      toast(`นำเข้าจาก RSVP ${fresh.length} รายการแล้ว`);
+    } catch {
+      toast('ดึงข้อมูล RSVP ไม่สำเร็จ');
+    }
+  });
+
+  // ---------- guest modal ----------
+  function tableOptions(sel, current) {
+    let html = '<option value="">— ยังไม่จัด —</option>';
+    for (let n = 1; n <= state.tableCount; n++) {
+      const used = usedAt(n), cap = capOf(n);
+      html += `<option value="${n}"${n === current ? ' selected' : ''}>โต๊ะ ${n}${nameOf(n) ? ' · ' + esc(nameOf(n)) : ''} (${used}/${cap})</option>`;
+    }
+    sel.innerHTML = html;
+  }
+  function openGuestModal(id) {
+    const g = id ? findGuest(id) : null;
+    editingGuest = g;
+    $('guestModalTitle').textContent = g ? 'แก้ไขแขก' : 'เพิ่มแขก';
+    $('gName').value = g?.name || '';
+    $('gCount').value = g?.count || 1;
+    $('gSide').value = g?.side || '';
+    $('gGroup').value = g?.group || '';
+    $('gNote').value = g?.note || '';
+    tableOptions($('gTable'), g?.table || null);
+    $('gDelete').style.display = g ? '' : 'none';
+    openModal('guestModal');
+    $('gName').focus();
+  }
+  $('addGuestBtn').addEventListener('click', () => openGuestModal(null));
+  $('gSave').addEventListener('click', () => {
+    const name = $('gName').value.trim();
+    if (!name) return toast('กรุณากรอกชื่อ');
+    const data = {
+      name, count: Math.max(1, parseInt($('gCount').value) || 1), side: $('gSide').value,
+      group: $('gGroup').value.trim(), note: $('gNote').value.trim(), table: parseInt($('gTable').value) || null,
+    };
+    if (data.table) {
+      const others = usedAt(data.table) - (editingGuest?.table === data.table ? editingGuest.count : 0);
+      if (others + data.count > capOf(data.table) && !confirm(`โต๊ะ ${data.table} จะเกินจำนวนที่นั่ง — ยืนยันหรือไม่?`)) return;
+    }
+    if (editingGuest) Object.assign(editingGuest, data);
+    else state.guests.push({ id: uid(), ...data });
+    persist();
+    closeModal('guestModal');
+    render();
+    if (openTable) renderTableModal();
+  });
+  $('gDelete').addEventListener('click', () => {
+    if (!editingGuest || !confirm(`ลบ "${editingGuest.name}" ออกจากรายชื่อ?`)) return;
+    state.guests = state.guests.filter((g) => g !== editingGuest);
+    selected.delete(editingGuest.id);
+    persist();
+    closeModal('guestModal');
+    render();
+    if (openTable) renderTableModal();
+  });
+
+  // ---------- table modal ----------
+  function openTableModal(n) {
+    openTable = n;
+    $('tmName').value = nameOf(n);
+    $('tmCap').value = capOf(n);
+    renderTableModal();
+    openModal('tableModal');
+  }
+  function renderTableModal() {
+    const n = openTable, gs = guestsAt(n), used = usedAt(n), cap = capOf(n);
+    $('tmTitle').textContent = `โต๊ะ ${n}`;
+    $('tmSub').textContent = `${used}/${cap} ที่นั่ง` + (used > cap ? ` · เกิน ${used - cap} คน` : ` · ว่าง ${cap - used} ที่`);
+    $('tmMembers').innerHTML = gs.length ? gs.map((g) => `
+      <div class="member">
+        <span class="guest-dot" style="background:${colorOf(g.group)}"></span>
+        <div class="guest-info"><div class="guest-name">${esc(g.name)}</div><div class="guest-meta">${esc([g.side, g.group, g.note].filter(Boolean).join(' · ') || '—')}</div></div>
+        <span class="guest-count">${g.count}</span>
+        <button class="btn" data-unseat="${g.id}">เอาออก</button>
+      </div>`).join('') : '<div class="hint">ยังไม่มีแขก</div>';
+    const free = state.guests.filter((g) => !g.table);
+    $('tmAdd').innerHTML = `<option value="">— เลือกแขก (${free.length}) —</option>` +
+      free.map((g) => `<option value="${g.id}">${esc(g.name)} (${g.count} คน)${g.group ? ' · ' + esc(g.group) : ''}</option>`).join('');
+  }
+  $('tmMembers').addEventListener('click', (e) => {
+    const b = e.target.closest('[data-unseat]');
+    if (!b) return;
+    findGuest(b.dataset.unseat).table = null;
+    persist(); render(); renderTableModal();
+  });
+  $('tmAdd').addEventListener('change', (e) => {
+    if (!e.target.value) return;
+    assign([e.target.value], openTable);
+    renderTableModal();
+  });
+  $('tmName').addEventListener('change', () => {
+    const v = $('tmName').value.trim();
+    state.tables[openTable] = { ...state.tables[openTable], name: v };
+    persist(); renderGrid();
+  });
+  $('tmCap').addEventListener('change', () => {
+    const v = Math.max(1, parseInt($('tmCap').value) || state.capacity);
+    state.tables[openTable] = { ...state.tables[openTable], capacity: v === state.capacity ? undefined : v };
+    persist(); render(); renderTableModal();
+  });
+  $('tmClear').addEventListener('click', () => {
+    if (!guestsAt(openTable).length || !confirm(`เอาแขกทั้งหมดออกจากโต๊ะ ${openTable}?`)) return;
+    guestsAt(openTable).forEach((g) => (g.table = null));
+    persist(); render(); renderTableModal();
+  });
+  $('tableModal').addEventListener('click', (e) => {
+    if (e.target === $('tableModal') || e.target.closest('[data-close]')) openTable = null;
+  });
+
+  // ---------- auto assign ----------
+  // Keep each group together: fill tables that already hold the same group first,
+  // then the lowest-numbered empty table, then best-fit any table with room.
+  function autoAssign(order, start) {
+    const key = (g) => (order === 'side-group' ? `${g.side || 'ฮ'}|${g.group || 'ฮ'}` : g.group || 'ฮ');
+    const pending = state.guests.filter((g) => !g.table)
+      .sort((a, b) => key(a).localeCompare(key(b), 'th') || b.count - a.count);
+    const free = {};
+    for (let n = 1; n <= state.tableCount; n++) free[n] = capOf(n) - usedAt(n);
+    const tableOrder = [];
+    for (let n = start; n <= state.tableCount; n++) tableOrder.push(n);
+    for (let n = 1; n < start; n++) tableOrder.push(n);
+    const groupTables = {};   // group key -> tables used
+    let placed = 0;
+    const skipped = [];
+    for (const g of pending) {
+      const k = key(g);
+      const mine = (groupTables[k] ||= []);
+      let t = mine.find((n) => free[n] >= g.count);
+      if (!t) t = tableOrder.find((n) => free[n] === capOf(n) && free[n] >= g.count);
+      if (!t) {
+        const fits = tableOrder.filter((n) => free[n] >= g.count).sort((a, b) => free[a] - free[b]);
+        t = fits[0];
+      }
+      if (!t) { skipped.push(g); continue; }
+      g.table = t;
+      free[t] -= g.count;
+      if (!mine.includes(t)) mine.push(t);
+      placed += g.count;
+    }
+    return { placed, skipped };
+  }
+  $('autoBtn').addEventListener('click', () => openModal('autoModal'));
+  $('autoRun').addEventListener('click', () => {
+    const start = Math.min(state.tableCount, Math.max(1, parseInt($('autoStart').value) || 1));
+    const { placed, skipped } = autoAssign($('autoOrder').value, start);
+    persist();
+    closeModal('autoModal');
+    render();
+    toast(skipped.length
+      ? `จัดได้ ${placed} คน · ยังไม่มีโต๊ะว่างพอสำหรับ ${skipped.length} รายการ`
+      : `จัดอัตโนมัติ ${placed} คนเรียบร้อย`, 4000);
+  });
+  $('resetAll').addEventListener('click', () => {
+    if (!confirm('ล้างการจัดโต๊ะของแขกทุกคน? (รายชื่อยังอยู่)')) return;
+    state.guests.forEach((g) => (g.table = null));
+    persist(); closeModal('autoModal'); render();
+  });
+
+  // ---------- export / print ----------
+  function download(name, content, type) {
+    const blob = new Blob([content], { type });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = name;
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+  }
+  const csvCell = (v) => `"${String(v ?? '').replace(/"/g, '""')}"`;
+  $('exportBtn').addEventListener('click', () => {
+    const rows = [['โต๊ะ', 'ชื่อโต๊ะ', 'ชื่อแขก', 'จำนวนคน', 'กลุ่ม', 'ฝ่าย', 'หมายเหตุ']];
+    [...state.guests].sort((a, b) => (a.table || 9999) - (b.table || 9999) || a.name.localeCompare(b.name, 'th'))
+      .forEach((g) => rows.push([g.table || 'ยังไม่จัด', g.table ? nameOf(g.table) : '', g.name, g.count, g.group, g.side, g.note]));
+    download('seating-plan.csv', '﻿' + rows.map((r) => r.map(csvCell).join(',')).join('\n'), 'text/csv;charset=utf-8');
+  });
+  $('printBtn').addEventListener('click', () => {
+    let html = '<h1>ผังที่นั่ง</h1><div class="print-grid">';
+    for (let n = 1; n <= state.tableCount; n++) {
+      const gs = guestsAt(n);
+      if (!gs.length) continue;
+      html += `<div class="print-table"><b>โต๊ะ ${n}${nameOf(n) ? ' · ' + esc(nameOf(n)) : ''} (${usedAt(n)}/${capOf(n)})</b>${gs.map((g) => `<div>${esc(g.name)}${g.count > 1 ? ` ×${g.count}` : ''}</div>`).join('')}</div>`;
+    }
+    html += '</div><h1 class="print-break">รายชื่อแขก → เลขโต๊ะ</h1><div class="print-list">';
+    [...state.guests].sort((a, b) => a.name.localeCompare(b.name, 'th'))
+      .forEach((g) => (html += `<div>${esc(g.name)} — <b>${g.table ? 'โต๊ะ ' + g.table : 'ยังไม่จัด'}</b></div>`));
+    html += '</div>';
+    $('printArea').innerHTML = html;
+    window.print();
+  });
+
+  // ---------- settings ----------
+  $('settingsBtn').addEventListener('click', () => {
+    $('setTables').value = state.tableCount;
+    $('setCap').value = state.capacity;
+    openModal('settingsModal');
+  });
+  $('setSave').addEventListener('click', () => {
+    const tc = Math.min(500, Math.max(1, parseInt($('setTables').value) || 90));
+    const cap = Math.min(30, Math.max(1, parseInt($('setCap').value) || 8));
+    const orphaned = state.guests.filter((g) => g.table > tc);
+    if (orphaned.length && !confirm(`มีแขก ${orphaned.length} รายการอยู่ในโต๊ะที่เกิน ${tc} — จะถูกย้ายกลับเป็น "ยังไม่จัด" ยืนยันหรือไม่?`)) return;
+    orphaned.forEach((g) => (g.table = null));
+    state.tableCount = tc;
+    state.capacity = cap;
+    persist(); closeModal('settingsModal'); render();
+  });
+  $('backupBtn').addEventListener('click', () => download(`seating-backup-${new Date().toISOString().slice(0, 10)}.json`, JSON.stringify(state, null, 2), 'application/json'));
+  $('restoreFile').addEventListener('change', async (e) => {
+    const f = e.target.files[0];
+    e.target.value = '';
+    if (!f) return;
+    try {
+      const data = JSON.parse(await f.text());
+      if (!Array.isArray(data.guests)) throw new Error();
+      if (!confirm(`กู้คืนข้อมูล ${data.guests.length} รายการ? ข้อมูลปัจจุบันจะถูกแทนที่`)) return;
+      state = Object.assign(defaultState(), data);
+      persist(); closeModal('settingsModal'); render();
+      toast('กู้คืนข้อมูลแล้ว');
+    } catch { toast('ไฟล์ไม่ถูกต้อง'); }
+  });
+  $('wipeBtn').addEventListener('click', () => {
+    if (!confirm('ลบรายชื่อแขกทั้งหมด? (แนะนำให้ดาวน์โหลดสำรองก่อน)')) return;
+    state.guests = [];
+    selected.clear();
+    persist(); closeModal('settingsModal'); render();
+  });
+})();
+</script>
+</body>
+</html>
