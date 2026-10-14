@@ -94,6 +94,13 @@
     .table-card.over { border-color: var(--danger); }
     .table-card.dim { opacity: 0.35; }
     .table-card.target { border-style: dashed; border-color: var(--accent); }
+    .table-card.vip { border-color: #d4b26a; background: #fffaf0; }
+    .table-card.vip .tc-no { color: #a07a2c; }
+    .stage { text-align: center; font-size: 0.75rem; letter-spacing: 0.3em; color: var(--text-muted); background: var(--beige); border: 1px solid var(--border); border-radius: 3px; padding: 6px; margin-bottom: 10px; }
+    .section-label { font-size: 0.78rem; color: var(--text-muted); margin: 14px 0 8px; display: flex; align-items: center; gap: 8px; }
+    .section-label:first-of-type { margin-top: 0; }
+    .section-label .btn { padding: 4px 10px; font-size: 0.75rem; }
+    .modal label.check { display: flex; align-items: center; gap: 8px; font-size: 0.88rem; margin-top: 12px; cursor: pointer; }
     .tc-head { display: flex; justify-content: space-between; align-items: baseline; gap: 6px; }
     .tc-no { font-family: 'Playfair Display', serif; font-size: 1.05rem; }
     .tc-name { font-size: 0.72rem; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex: 1; }
@@ -245,7 +252,7 @@
         </select>
         <span class="hint" id="tableHint"></span>
       </div>
-      <div class="grid" id="grid"></div>
+      <div id="grid"></div>
     </section>
   </div>
 </div>
@@ -304,6 +311,7 @@
       <div style="flex:2"><label>ชื่อโต๊ะ (ไม่บังคับ)</label><input class="field" id="tmName" placeholder="เช่น โต๊ะครอบครัวเจ้าสาว" /></div>
       <div style="flex:1"><label>ที่นั่ง</label><input class="field" id="tmCap" type="number" min="1" /></div>
     </div>
+    <label class="check"><input type="checkbox" id="tmVip" /> โต๊ะ VIP (แถวหน้าสุด)</label>
     <label>แขกในโต๊ะนี้</label>
     <div id="tmMembers"></div>
     <label>เพิ่มแขก — พิมพ์ชื่อเพื่อค้นหาแขกที่ยังไม่ได้จัด หรือเพิ่มชื่อใหม่</label>
@@ -315,6 +323,7 @@
     <div class="modal-actions">
       <button class="btn btn-danger left" id="tmClear">ล้างโต๊ะ</button>
       <button class="btn" id="tmMoveAll">ย้ายทั้งโต๊ะ</button>
+      <button class="btn btn-danger" id="tmDelete">ลบโต๊ะนี้</button>
       <button class="btn btn-primary" data-close>เสร็จ</button>
     </div>
   </div>
@@ -324,7 +333,7 @@
 <div class="modal-bg" id="autoModal">
   <div class="modal">
     <h2>จัดโต๊ะอัตโนมัติ</h2>
-    <p class="sub">จัดเฉพาะแขกที่ยังไม่มีโต๊ะ โดยพยายามให้คนกลุ่มเดียวกันนั่งด้วยกัน และไม่แยกครอบครัว/กลุ่มที่มาด้วยกัน — แขกที่จัดไว้แล้วจะไม่ถูกย้าย</p>
+    <p class="sub">จัดเฉพาะแขกที่ยังไม่มีโต๊ะ ลงโต๊ะทั่วไป (ไม่รวมโต๊ะ VIP) โดยพยายามให้คนกลุ่มเดียวกันนั่งด้วยกัน และไม่แยกครอบครัว/กลุ่มที่มาด้วยกัน — แขกที่จัดไว้แล้วจะไม่ถูกย้าย</p>
     <label>เรียงตาม</label>
     <select class="field" id="autoOrder">
       <option value="side-group">ฝ่าย → กลุ่ม (แยกโซนเจ้าบ่าว / เจ้าสาว)</option>
@@ -345,7 +354,8 @@
   <div class="modal">
     <h2>ตั้งค่า</h2>
     <div class="row">
-      <div style="flex:1"><label>จำนวนโต๊ะ</label><input class="field" id="setTables" type="number" min="1" max="500" /></div>
+      <div style="flex:1"><label>โต๊ะ VIP</label><input class="field" id="setVip" type="number" min="0" max="50" /></div>
+      <div style="flex:1"><label>โต๊ะทั่วไป</label><input class="field" id="setTables" type="number" min="0" max="500" /></div>
       <div style="flex:1"><label>ที่นั่งต่อโต๊ะ (ค่าเริ่มต้น)</label><input class="field" id="setCap" type="number" min="1" max="30" /></div>
     </div>
     <label>สำรองข้อมูล</label>
@@ -380,7 +390,31 @@
   let openTable = null;
   let editingGuest = null;
 
-  const defaultState = () => ({ version: 1, tableCount: 90, capacity: 8, tables: {}, guests: [], updatedAt: null });
+  const tid = () => 't' + uid();
+  const makeTables = (vip, regular) => [
+    ...Array.from({ length: vip }, () => ({ id: tid(), vip: true })),
+    ...Array.from({ length: regular }, () => ({ id: tid(), vip: false })),
+  ];
+  const defaultState = () => ({ version: 2, capacity: 8, tableList: makeTables(4, 86), guests: [], updatedAt: null });
+  const VIP_DEFAULT = 4;
+
+  // Tables have stable ids; their numbers come from their position, so adding or
+  // deleting a table renumbers the rest automatically. Older saves numbered tables
+  // 1..tableCount — convert those and add the VIP row in front.
+  function migrate(s) {
+    s = Object.assign({ capacity: 8, guests: [] }, s);
+    if (!Array.isArray(s.tableList)) {
+      const old = s.tables || {}, count = s.tableCount || 90;
+      s.tableList = makeTables(VIP_DEFAULT, 0);
+      for (let n = 1; n <= count; n++) s.tableList.push({ id: 't' + n, vip: false, name: old[n]?.name, capacity: old[n]?.capacity });
+      s.guests.forEach((g) => { g.table = g.table ? 't' + g.table : null; });
+      delete s.tables; delete s.tableCount;
+      s.version = 2;
+    }
+    const ids = new Set(s.tableList.map((t) => t.id));
+    s.guests.forEach((g) => { if (g.table && !ids.has(g.table)) g.table = null; });
+    return s;
+  }
 
   // ---------- toast ----------
   function toast(msg, ms = 2600) {
@@ -392,8 +426,19 @@
   }
 
   // ---------- helpers ----------
-  const capOf = (n) => state.tables[n]?.capacity || state.capacity;
-  const nameOf = (n) => state.tables[n]?.name || '';
+  const tableById = (id) => state.tableList.find((t) => t.id === id);
+  const capOf = (id) => tableById(id)?.capacity || state.capacity;
+  const nameOf = (id) => tableById(id)?.name || '';
+  // VIP tables always come first; regular tables keep their relative order
+  const sortTables = () => state.tableList.sort((a, b) => (b.vip ? 1 : 0) - (a.vip ? 1 : 0));
+  function numberOf(id) {
+    const t = tableById(id);
+    if (!t) return '?';
+    return state.tableList.filter((x) => x.vip === t.vip).indexOf(t) + 1;
+  }
+  const shortLabel = (id) => (tableById(id)?.vip ? `VIP ${numberOf(id)}` : String(numberOf(id)));
+  const labelOf = (id) => (tableById(id)?.vip ? `VIP ${numberOf(id)}` : `โต๊ะ ${numberOf(id)}`);
+  const orderOf = (id) => { const i = state.tableList.findIndex((t) => t.id === id); return i < 0 ? 1e6 : i; };
   const guestsAt = (n) => state.guests.filter((g) => g.table === n);
   const usedAt = (n) => guestsAt(n).reduce((s, g) => s + g.count, 0);
   const totalPeople = () => state.guests.reduce((s, g) => s + g.count, 0);
@@ -451,8 +496,7 @@
     let local = null;
     try { local = JSON.parse(localStorage.getItem(LOCAL_KEY) || 'null'); } catch {}
     // Prefer the server copy; fall back to a local backup if the server has nothing yet
-    state = remote || local || defaultState();
-    state = Object.assign(defaultState(), state);
+    state = migrate(remote || local || defaultState());
     if (!remote && local && local.guests?.length) persist();
     return 'ok';
   }
@@ -460,7 +504,7 @@
   // ---------- start ----------
   loadState().then((r) => {
     if (r === 'network') setStatus('เชื่อมต่อเซิร์ฟเวอร์ไม่ได้ — ใช้ข้อมูลสำรองในเครื่อง', true);
-    if (!state) state = defaultState();
+    if (!state) state = migrate(defaultState());
     if (state.updatedAt) setStatus('อัปเดตล่าสุด ' + new Date(state.updatedAt).toLocaleString('th-TH', { dateStyle: 'short', timeStyle: 'short' }));
     render();
   });
@@ -477,15 +521,16 @@
     const total = totalPeople();
     const seated = state.guests.filter((g) => g.table).reduce((s, g) => s + g.count, 0);
     let seats = 0, used = 0;
-    for (let n = 1; n <= state.tableCount; n++) { seats += capOf(n); if (usedAt(n) > 0) used++; }
+    for (const t of state.tableList) { seats += capOf(t.id); if (usedAt(t.id) > 0) used++; }
     $('sGuests').textContent = total;
     $('sSeated').textContent = seated;
     $('sUnseated').textContent = total - seated;
-    $('sTables').textContent = `${used}/${state.tableCount}`;
+    $('sTables').textContent = `${used}/${state.tableList.length}`;
     $('pFill').style.width = seats ? Math.min(100, (seated / seats) * 100) + '%' : 0;
     const free = seats - seated;
     $('pText').textContent = `ใช้ไป ${seated} จาก ${seats} ที่นั่ง · ว่าง ${free} ที่` + (total > seats ? ` · ⚠ แขกเกินที่นั่ง ${total - seats} คน` : '');
-    $('layoutLabel').textContent = `${state.tableCount} โต๊ะ × ${state.capacity} ที่นั่ง`;
+    const vipN = state.tableList.filter((t) => t.vip).length;
+    $('layoutLabel').textContent = `${state.tableList.length} โต๊ะ (VIP ${vipN}) × ${state.capacity} ที่นั่ง`;
   }
 
   function renderGroupFilter() {
@@ -529,7 +574,7 @@
             <div class="guest-name">${esc(g.name)}</div>
             <div class="guest-meta">${esc([g.side, g.group, g.note].filter(Boolean).join(' · ') || '—')}</div>
           </div>
-          ${g.table ? `<span class="guest-table">โต๊ะ ${g.table}</span>` : ''}
+          ${g.table ? `<span class="guest-table">${labelOf(g.table)}</span>` : ''}
           <span class="guest-count">${g.count}</span>
           <button class="guest-edit" data-edit="${g.id}" title="แก้ไข">✎</button>
         </div>`).join('');
@@ -540,7 +585,7 @@
       : 'ลากชื่อไปวางบนโต๊ะ หรือแตะเลือกชื่อแล้วแตะโต๊ะ';
     const from = [...new Set([...selected].map(findGuest).filter((g) => g && g.table).map((g) => g.table))];
     $('tableHint').innerHTML = selected.size
-      ? `<b>${from.length ? `ย้ายจากโต๊ะ ${from.join(', ')}` : 'เลือกแล้ว'} ${selPeople} คน</b> — แตะโต๊ะปลายทาง · <a href="#" data-cancel-sel>ยกเลิก</a>`
+      ? `<b>${from.length ? `ย้ายจาก ${from.map(labelOf).join(', ')}` : 'เลือกแล้ว'} ${selPeople} คน</b> — แตะโต๊ะปลายทาง · <a href="#" data-cancel-sel>ยกเลิก</a>`
       : '';
   }
 
@@ -553,7 +598,8 @@
     if (f === 'full' && used !== cap) return false;
     if (f === 'over' && used <= cap) return false;
     if (q) {
-      const hay = [String(n), nameOf(n), ...guestsAt(n).map((g) => g.name)].join(' ').toLowerCase();
+      const hay = [shortLabel(n), nameOf(n), ...guestsAt(n).map((g) => g.name)].join(' ').toLowerCase();
+      if (/^(vip\s*)?\d+$/i.test(q)) return shortLabel(n).toLowerCase() === q.replace(/\s+/g, ' ').replace(/^vip(\d)/, 'vip $1');
       if (!hay.includes(q)) return false;
     }
     return true;
@@ -561,8 +607,9 @@
 
   function renderGrid() {
     const selPeople = [...selected].map(findGuest).filter(Boolean).reduce((s, g) => s + g.count, 0);
-    let html = '';
-    for (let n = 1; n <= state.tableCount; n++) {
+    let vipHtml = '', html = '';
+    for (const t of state.tableList) {
+      const n = t.id;
       if (!tableMatches(n)) continue;
       const gs = guestsAt(n), cap = capOf(n), used = gs.reduce((s, g) => s + g.count, 0);
       const seats = [];
@@ -573,11 +620,12 @@
       if (used === cap) cls.push('full');
       if (used > cap) cls.push('over');
       if (selected.size) cls.push(used + selPeople <= cap ? 'target' : 'dim');
+      if (t.vip) cls.push('vip');
       const shown = gs.slice(0, 4);
-      html += `
+      const card = `
         <div class="${cls.join(' ')}" data-table="${n}">
           <div class="tc-head">
-            <span class="tc-no">${n}</span>
+            <span class="tc-no">${shortLabel(n)}</span>
             <span class="tc-name">${esc(nameOf(n))}</span>
             <span class="tc-cap ${used > cap ? 'over' : used === cap ? 'full' : ''}">${used}/${cap}</span>
             ${gs.length ? `<button class="tc-clear" data-clear="${n}" title="ล้างโต๊ะนี้">✕</button>` : ''}
@@ -589,8 +637,16 @@
             ${!gs.length ? '<div class="more">ว่าง</div>' : ''}
           </div>
         </div>`;
+      if (t.vip) vipHtml += card; else html += card;
     }
-    $('grid').innerHTML = html || '<div class="empty">ไม่พบโต๊ะ</div>';
+    const vipCount = state.tableList.filter((t) => t.vip).length;
+    const regCount = state.tableList.length - vipCount;
+    $('grid').innerHTML = `
+      <div class="stage">เวที</div>
+      <div class="section-label">โต๊ะ VIP · แถวหน้าสุด (${vipCount}) <button class="btn" data-add-table="vip">＋ เพิ่มโต๊ะ VIP</button></div>
+      <div class="grid">${vipHtml || '<div class="hint">ไม่มีโต๊ะ VIP</div>'}</div>
+      <div class="section-label">โต๊ะทั่วไป (${regCount}) <button class="btn" data-add-table="regular">＋ เพิ่มโต๊ะ</button></div>
+      <div class="grid">${html || '<div class="hint">ไม่พบโต๊ะ</div>'}</div>`;
   }
 
   const findGuest = (id) => state.guests.find((g) => g.id === id);
@@ -602,12 +658,12 @@
     if (!moving.length) { selected.clear(); render(); return; }
     const need = moving.reduce((s, g) => s + g.count, 0);
     const after = usedAt(table) + need, cap = capOf(table);
-    if (after > cap && !confirm(`โต๊ะ ${table} จะมี ${after} คน (เกิน ${cap} ที่นั่ง) — ยืนยันจัดลงหรือไม่?`)) return;
+    if (after > cap && !confirm(`${labelOf(table)} จะมี ${after} คน (เกิน ${cap} ที่นั่ง) — ยืนยันจัดลงหรือไม่?`)) return;
     moving.forEach((g) => (g.table = table));
     selected.clear();
     persist();
     render();
-    toast(`จัด ${need} คนลงโต๊ะ ${table} แล้ว`);
+    toast(`จัด ${need} คนลง${labelOf(table)} แล้ว`);
   }
 
   // guest list interactions
@@ -643,7 +699,7 @@
     const card = e.target.closest('.table-card');
     if (!card) return;
     e.preventDefault();
-    const n = +card.dataset.table;
+    const n = card.dataset.table;
     const need = dragIds.map(findGuest).filter((g) => g && g.table !== n).reduce((s, g) => s + g.count, 0);
     card.classList.toggle('drop-ok', usedAt(n) + need <= capOf(n));
     card.classList.toggle('drop-bad', usedAt(n) + need > capOf(n));
@@ -657,15 +713,17 @@
     if (!card) return;
     e.preventDefault();
     card.classList.remove('drop-ok', 'drop-bad');
-    assign(dragIds, +card.dataset.table);
+    assign(dragIds, card.dataset.table);
     dragIds = [];
   });
   $('grid').addEventListener('click', (e) => {
+    const add = e.target.closest('[data-add-table]');
+    if (add) return addTable(add.dataset.addTable === 'vip');
     const clr = e.target.closest('[data-clear]');
-    if (clr) return clearTable(+clr.dataset.clear);
+    if (clr) return clearTable(clr.dataset.clear);
     const card = e.target.closest('.table-card');
     if (!card) return;
-    const n = +card.dataset.table;
+    const n = card.dataset.table;
     if (selected.size) return assign([...selected], n);
     openTableModal(n);
   });
@@ -814,9 +872,9 @@
   // ---------- guest modal ----------
   function tableOptions(sel, current) {
     let html = '<option value="">— ยังไม่จัด —</option>';
-    for (let n = 1; n <= state.tableCount; n++) {
-      const used = usedAt(n), cap = capOf(n);
-      html += `<option value="${n}"${n === current ? ' selected' : ''}>โต๊ะ ${n}${nameOf(n) ? ' · ' + esc(nameOf(n)) : ''} (${used}/${cap})</option>`;
+    for (const t of state.tableList) {
+      const n = t.id, used = usedAt(n), cap = capOf(n);
+      html += `<option value="${n}"${n === current ? ' selected' : ''}>${labelOf(n)}${nameOf(n) ? ' · ' + esc(nameOf(n)) : ''} (${used}/${cap})</option>`;
     }
     sel.innerHTML = html;
   }
@@ -840,11 +898,11 @@
     if (!name) return toast('กรุณากรอกชื่อ');
     const data = {
       name, count: Math.max(1, parseInt($('gCount').value) || 1), side: $('gSide').value.trim(),
-      group: $('gGroup').value.trim(), note: $('gNote').value.trim(), table: parseInt($('gTable').value) || null,
+      group: $('gGroup').value.trim(), note: $('gNote').value.trim(), table: $('gTable').value || null,
     };
     if (data.table) {
       const others = usedAt(data.table) - (editingGuest?.table === data.table ? editingGuest.count : 0);
-      if (others + data.count > capOf(data.table) && !confirm(`โต๊ะ ${data.table} จะเกินจำนวนที่นั่ง — ยืนยันหรือไม่?`)) return;
+      if (others + data.count > capOf(data.table) && !confirm(`${labelOf(data.table)} จะเกินจำนวนที่นั่ง — ยืนยันหรือไม่?`)) return;
     }
     if (editingGuest) Object.assign(editingGuest, data);
     else state.guests.push({ id: uid(), ...data });
@@ -869,12 +927,13 @@
     $('tmAdd').value = '';
     $('tmName').value = nameOf(n);
     $('tmCap').value = capOf(n);
+    $('tmVip').checked = !!tableById(n)?.vip;
     renderTableModal();
     openModal('tableModal');
   }
   function renderTableModal() {
     const n = openTable, gs = guestsAt(n), used = usedAt(n), cap = capOf(n);
-    $('tmTitle').textContent = `โต๊ะ ${n}`;
+    $('tmTitle').textContent = labelOf(n);
     $('tmSub').textContent = `${used}/${cap} ที่นั่ง` + (used > cap ? ` · เกิน ${used - cap} คน` : ` · ว่าง ${cap - used} ที่`);
     $('tmMembers').innerHTML = gs.length ? gs.map((g) => `
       <div class="member">
@@ -950,21 +1009,51 @@
   });
   $('tmName').addEventListener('change', () => {
     const v = $('tmName').value.trim();
-    state.tables[openTable] = { ...state.tables[openTable], name: v };
+    tableById(openTable).name = v;
     persist(); renderGrid();
   });
   $('tmCap').addEventListener('change', () => {
     const v = Math.max(1, parseInt($('tmCap').value) || state.capacity);
-    state.tables[openTable] = { ...state.tables[openTable], capacity: v === state.capacity ? undefined : v };
+    tableById(openTable).capacity = v === state.capacity ? undefined : v;
     persist(); render(); renderTableModal();
   });
   function clearTable(n) {
     const gs = guestsAt(n);
-    if (!gs.length || !confirm(`เอาแขกทั้งหมดออกจากโต๊ะ ${n}? (รายชื่อจะกลับไปอยู่ใน "ยังไม่จัด")`)) return;
+    if (!gs.length || !confirm(`เอาแขกทั้งหมดออกจาก${labelOf(n)}? (รายชื่อจะกลับไปอยู่ใน "ยังไม่จัด")`)) return;
     gs.forEach((g) => (g.table = null));
     persist(); render();
-    toast(`ล้างโต๊ะ ${n} แล้ว`);
+    toast(`ล้าง${labelOf(n)} แล้ว`);
   }
+
+  // ---------- add / delete tables ----------
+  function addTable(vip) {
+    const t = { id: tid(), vip };
+    state.tableList.push(t);
+    sortTables();
+    persist(); render();
+    toast(`เพิ่ม${labelOf(t.id)} แล้ว`);
+  }
+  function deleteTable(id) {
+    const gs = guestsAt(id), label = labelOf(id);
+    const msg = gs.length
+      ? `ลบ${label}? แขก ${usedAt(id)} คนในโต๊ะนี้จะกลับไปอยู่ใน "ยังไม่จัด" และเลขโต๊ะถัดไปจะเลื่อนขึ้นอัตโนมัติ`
+      : `ลบ${label}? เลขโต๊ะถัดไปจะเลื่อนขึ้นอัตโนมัติ`;
+    if (!confirm(msg)) return false;
+    gs.forEach((g) => (g.table = null));
+    state.tableList = state.tableList.filter((t) => t.id !== id);
+    persist(); render();
+    toast(`ลบ${label}แล้ว — เรียงเลขโต๊ะใหม่ให้แล้ว`);
+    return true;
+  }
+  $('tmDelete').addEventListener('click', () => {
+    if (deleteTable(openTable)) { openTable = null; closeModal('tableModal'); }
+  });
+  $('tmVip').addEventListener('change', () => {
+    tableById(openTable).vip = $('tmVip').checked;
+    sortTables();
+    persist(); render(); renderTableModal();
+    toast(`ตอนนี้เป็น${labelOf(openTable)}`);
+  });
   $('tmClear').addEventListener('click', () => { clearTable(openTable); renderTableModal(); });
   $('tableModal').addEventListener('click', (e) => {
     if (e.target === $('tableModal') || e.target.closest('[data-close]')) openTable = null;
@@ -978,10 +1067,9 @@
     const pending = state.guests.filter((g) => !g.table)
       .sort((a, b) => key(a).localeCompare(key(b), 'th') || b.count - a.count);
     const free = {};
-    for (let n = 1; n <= state.tableCount; n++) free[n] = capOf(n) - usedAt(n);
-    const tableOrder = [];
-    for (let n = start; n <= state.tableCount; n++) tableOrder.push(n);
-    for (let n = 1; n < start; n++) tableOrder.push(n);
+    const regular = state.tableList.filter((t) => !t.vip).map((t) => t.id);
+    regular.forEach((n) => (free[n] = capOf(n) - usedAt(n)));
+    const tableOrder = [...regular.slice(start - 1), ...regular.slice(0, start - 1)];
     const groupTables = {};   // group key -> tables used
     let placed = 0;
     const skipped = [];
@@ -1004,7 +1092,8 @@
   }
   $('autoBtn').addEventListener('click', () => openModal('autoModal'));
   $('autoRun').addEventListener('click', () => {
-    const start = Math.min(state.tableCount, Math.max(1, parseInt($('autoStart').value) || 1));
+    const regularCount = state.tableList.filter((t) => !t.vip).length;
+    const start = Math.min(Math.max(1, regularCount), Math.max(1, parseInt($('autoStart').value) || 1));
     const { placed, skipped } = autoAssign($('autoOrder').value, start);
     persist();
     closeModal('autoModal');
@@ -1035,20 +1124,20 @@
   const csvCell = (v) => `"${String(v ?? '').replace(/"/g, '""')}"`;
   $('exportBtn').addEventListener('click', () => {
     const rows = [['โต๊ะ', 'ชื่อโต๊ะ', 'ชื่อแขก', 'จำนวนคน', 'กลุ่ม', 'ฝ่าย', 'หมายเหตุ']];
-    [...state.guests].sort((a, b) => (a.table || 9999) - (b.table || 9999) || a.name.localeCompare(b.name, 'th'))
-      .forEach((g) => rows.push([g.table || 'ยังไม่จัด', g.table ? nameOf(g.table) : '', g.name, g.count, g.group, g.side, g.note]));
+    [...state.guests].sort((a, b) => orderOf(a.table) - orderOf(b.table) || a.name.localeCompare(b.name, 'th'))
+      .forEach((g) => rows.push([g.table ? shortLabel(g.table) : 'ยังไม่จัด', g.table ? nameOf(g.table) : '', g.name, g.count, g.group, g.side, g.note]));
     download('seating-plan.csv', '﻿' + rows.map((r) => r.map(csvCell).join(',')).join('\n'), 'text/csv;charset=utf-8');
   });
   $('printBtn').addEventListener('click', () => {
     let html = '<h1>ผังที่นั่ง</h1><div class="print-grid">';
-    for (let n = 1; n <= state.tableCount; n++) {
-      const gs = guestsAt(n);
+    for (const t of state.tableList) {
+      const n = t.id, gs = guestsAt(n);
       if (!gs.length) continue;
-      html += `<div class="print-table"><b>โต๊ะ ${n}${nameOf(n) ? ' · ' + esc(nameOf(n)) : ''} (${usedAt(n)}/${capOf(n)})</b>${gs.map((g) => `<div>${esc(g.name)}${g.count > 1 ? ` ×${g.count}` : ''}</div>`).join('')}</div>`;
+      html += `<div class="print-table"><b>${labelOf(n)}${nameOf(n) ? ' · ' + esc(nameOf(n)) : ''} (${usedAt(n)}/${capOf(n)})</b>${gs.map((g) => `<div>${esc(g.name)}${g.count > 1 ? ` ×${g.count}` : ''}</div>`).join('')}</div>`;
     }
     html += '</div><h1 class="print-break">รายชื่อแขก → เลขโต๊ะ</h1><div class="print-list">';
     [...state.guests].sort((a, b) => a.name.localeCompare(b.name, 'th'))
-      .forEach((g) => (html += `<div>${esc(g.name)} — <b>${g.table ? 'โต๊ะ ' + g.table : 'ยังไม่จัด'}</b></div>`));
+      .forEach((g) => (html += `<div>${esc(g.name)} — <b>${g.table ? labelOf(g.table) : 'ยังไม่จัด'}</b></div>`));
     html += '</div>';
     $('printArea').innerHTML = html;
     window.print();
@@ -1056,17 +1145,25 @@
 
   // ---------- settings ----------
   $('settingsBtn').addEventListener('click', () => {
-    $('setTables').value = state.tableCount;
+    $('setVip').value = state.tableList.filter((t) => t.vip).length;
+    $('setTables').value = state.tableList.filter((t) => !t.vip).length;
     $('setCap').value = state.capacity;
     openModal('settingsModal');
   });
   $('setSave').addEventListener('click', () => {
-    const tc = Math.min(500, Math.max(1, parseInt($('setTables').value) || 90));
+    const toInt = (v, d) => (Number.isFinite(parseInt(v)) ? parseInt(v) : d);
+    const wantVip = Math.min(50, Math.max(0, toInt($('setVip').value, 4)));
+    const wantReg = Math.min(500, Math.max(0, toInt($('setTables').value, 86)));
     const cap = Math.min(30, Math.max(1, parseInt($('setCap').value) || 8));
-    const orphaned = state.guests.filter((g) => g.table > tc);
-    if (orphaned.length && !confirm(`มีแขก ${orphaned.length} รายการอยู่ในโต๊ะที่เกิน ${tc} — จะถูกย้ายกลับเป็น "ยังไม่จัด" ยืนยันหรือไม่?`)) return;
+    // Grow or shrink each kind from the end of its list
+    const vips = state.tableList.filter((t) => t.vip), regs = state.tableList.filter((t) => !t.vip);
+    const dropped = [...vips.slice(wantVip), ...regs.slice(wantReg)].map((t) => t.id);
+    const orphaned = state.guests.filter((g) => dropped.includes(g.table));
+    if (orphaned.length && !confirm(`มีแขก ${orphaned.length} รายการอยู่ในโต๊ะที่จะถูกลบ — จะถูกย้ายกลับเป็น "ยังไม่จัด" ยืนยันหรือไม่?`)) return;
     orphaned.forEach((g) => (g.table = null));
-    state.tableCount = tc;
+    while (vips.length < wantVip) vips.push({ id: tid(), vip: true });
+    while (regs.length < wantReg) regs.push({ id: tid(), vip: false });
+    state.tableList = [...vips.slice(0, wantVip), ...regs.slice(0, wantReg)];
     state.capacity = cap;
     persist(); closeModal('settingsModal'); render();
   });
@@ -1079,7 +1176,7 @@
       const data = JSON.parse(await f.text());
       if (!Array.isArray(data.guests)) throw new Error();
       if (!confirm(`กู้คืนข้อมูล ${data.guests.length} รายการ? ข้อมูลปัจจุบันจะถูกแทนที่`)) return;
-      state = Object.assign(defaultState(), data);
+      state = migrate(data);
       persist(); closeModal('settingsModal'); render();
       toast('กู้คืนข้อมูลแล้ว');
     } catch { toast('ไฟล์ไม่ถูกต้อง'); }
