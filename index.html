@@ -492,14 +492,14 @@
         var(--beige) 100%);
     }
     .gallery-grid {
-      max-width: 1200px;
+      max-width: 960px;
       margin: 0 auto;
-      columns: 3;
-      column-gap: 16px;
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 12px;
     }
     .gallery-item {
-      break-inside: avoid;
-      margin-bottom: 16px;
+      aspect-ratio: 4 / 5;
       cursor: pointer;
       overflow: hidden;
       border-radius: 2px;
@@ -507,10 +507,38 @@
     }
     .gallery-item img {
       width: 100%;
+      height: 100%;
+      object-fit: cover;
       display: block;
       transition: transform 0.5s ease;
     }
     .gallery-item:hover img { transform: scale(1.04); }
+    .gallery-item .gallery-placeholder { height: 100% !important; }
+    .gallery-more-wrap { text-align: center; margin-top: 32px; }
+    .gallery-more {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 12px 32px;
+      border: 1px solid var(--accent);
+      border-radius: 999px;
+      color: var(--accent);
+      font-family: 'Sarabun', sans-serif;
+      font-size: var(--fs-sm);
+      letter-spacing: 0.08em;
+      cursor: pointer;
+      background: linear-gradient(90deg, var(--accent) 0%, var(--accent) 50%, transparent 50%, transparent 100%);
+      background-size: 220% 100%;
+      background-position: right center;
+      transition: background-position var(--dur-slow) var(--ease-in-out),
+                  color var(--dur-normal), transform var(--dur-normal), box-shadow var(--dur-normal);
+    }
+    .gallery-more:hover {
+      background-position: left center;
+      color: var(--white);
+      transform: translateY(-2px);
+      box-shadow: 0 8px 20px rgba(138, 106, 79, 0.3);
+    }
     .gallery-item-overlay {
       position: absolute;
       inset: 0;
@@ -1588,7 +1616,7 @@
       .section-label { letter-spacing: 0.28em; }
       .section-title { font-size: clamp(1.5rem, 6.5vw, 2rem); }
 
-      .gallery-grid { columns: 2; }
+      .gallery-grid { grid-template-columns: repeat(2, 1fr); gap: 8px; }
 
       .form-container { padding: 28px 20px; }
       .form-row { grid-template-columns: 1fr; }
@@ -1596,7 +1624,6 @@
     }
     @media (max-width: 480px) {
       section { padding: 64px 16px; }
-      .gallery-grid { columns: 1; }
       .nav-links a { font-size: 0.9rem; }
       .nav-links {
         padding: 22px 20px 26px;
@@ -1795,6 +1822,9 @@
   <br><br>
   <div class="gallery-grid" id="galleryGrid">
     <!-- filled by JS -->
+  </div>
+  <div class="gallery-more-wrap" id="galleryMoreWrap" style="display:none">
+    <button type="button" class="gallery-more" id="galleryMore"></button>
   </div>
 </section>
 
@@ -2137,6 +2167,7 @@
     localStorage.setItem('likedPhotos', JSON.stringify([...set]));
   }
 
+  const GALLERY_PREVIEW = 6;
   async function loadGallery() {
     const grid = document.getElementById('galleryGrid');
     try {
@@ -2144,7 +2175,7 @@
       const { photos, likes = {} } = await res.json();
       if (photos && photos.length > 0) {
         const likedSet = getLikedSet();
-        grid.innerHTML = photos.map((src, i) => {
+        grid.innerHTML = photos.slice(0, GALLERY_PREVIEW).map((src, i) => {
           const key = fileKey(src);
           const count = likes[key] || 0;
           const liked = likedSet.has(key);
@@ -2159,6 +2190,14 @@
         }).join('');
         setupLightbox(photos);
         setupLikes();
+        if (photos.length > GALLERY_PREVIEW) {
+          const moreBtn = document.getElementById('galleryMore');
+          moreBtn.dataset.th = `ดูรูปทั้งหมด (${photos.length})`;
+          moreBtn.dataset.en = `View all photos (${photos.length})`;
+          moreBtn.textContent = moreBtn.dataset[currentLang];
+          moreBtn.onclick = () => openLightbox(photos, GALLERY_PREVIEW);
+          document.getElementById('galleryMoreWrap').style.display = 'block';
+        }
       } else {
         renderPlaceholders(grid);
       }
