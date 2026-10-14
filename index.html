@@ -513,7 +513,6 @@
       transition: transform 0.5s ease;
     }
     .gallery-item:hover img { transform: scale(1.04); }
-    .gallery-item .gallery-placeholder { height: 100% !important; }
     .gallery-more-wrap { text-align: center; margin-top: 32px; }
     .gallery-more {
       display: inline-flex;
@@ -2152,12 +2151,6 @@
   document.querySelectorAll('.fade-up').forEach(el => observer.observe(el));
 
   // Gallery
-  const PLACEHOLDER_COLORS = [
-    ['#e8ddd4','#c9b49a'], ['#d4c5b5','#a88870'], ['#c9b49a','#8b6e5a'],
-    ['#ddd0c4','#b89a85'], ['#e0d5c8','#c5a892'], ['#ccc0b0','#9a7d6e'],
-  ];
-  const PLACEHOLDER_HEIGHTS = [260, 340, 300, 380, 280, 320];
-
   const fileKey = src => src.split('/').pop();
   function getLikedSet() {
     try { return new Set(JSON.parse(localStorage.getItem('likedPhotos') || '[]')); }
@@ -2168,41 +2161,43 @@
   }
 
   const GALLERY_PREVIEW = 6;
+  const FEATURED_PHOTOS = [1, 2, 3, 4, 5, 6].map(n => `assets/featured/featured-${n}.jpg`);
   async function loadGallery() {
     const grid = document.getElementById('galleryGrid');
+    let apiPhotos = [];
+    let likes = {};
     try {
       const res = await fetch('/api/photos');
-      const { photos, likes = {} } = await res.json();
-      if (photos && photos.length > 0) {
-        const likedSet = getLikedSet();
-        grid.innerHTML = photos.slice(0, GALLERY_PREVIEW).map((src, i) => {
-          const key = fileKey(src);
-          const count = likes[key] || 0;
-          const liked = likedSet.has(key);
-          return `<div class="gallery-item" data-index="${i}">
-            <img src="${src}" alt="gallery photo ${i+1}" loading="lazy" />
-            <div class="gallery-item-overlay"><span>⤢</span></div>
-            <button class="gallery-like${liked ? ' liked' : ''}" data-key="${key}" aria-label="ถูกใจ">
-              <span class="like-heart">${liked ? '♥' : '♡'}</span>
-              <span class="like-count">${count}</span>
-            </button>
-          </div>`;
-        }).join('');
-        setupLightbox(photos);
-        setupLikes();
-        if (photos.length > GALLERY_PREVIEW) {
-          const moreBtn = document.getElementById('galleryMore');
-          moreBtn.dataset.th = `ดูรูปทั้งหมด (${photos.length})`;
-          moreBtn.dataset.en = `View all photos (${photos.length})`;
-          moreBtn.textContent = moreBtn.dataset[currentLang];
-          moreBtn.onclick = () => openLightbox(photos, GALLERY_PREVIEW);
-          document.getElementById('galleryMoreWrap').style.display = 'block';
-        }
-      } else {
-        renderPlaceholders(grid);
-      }
-    } catch {
-      renderPlaceholders(grid);
+      const data = await res.json();
+      apiPhotos = data.photos || [];
+      likes = data.likes || {};
+    } catch {}
+
+    const all = [...FEATURED_PHOTOS, ...apiPhotos];
+    const likedSet = getLikedSet();
+    grid.innerHTML = all.slice(0, GALLERY_PREVIEW).map((src, i) => {
+      const key = fileKey(src);
+      const count = likes[key] || 0;
+      const liked = likedSet.has(key);
+      return `<div class="gallery-item" data-index="${i}">
+        <img src="${src}" alt="gallery photo ${i+1}" loading="lazy" />
+        <div class="gallery-item-overlay"><span>⤢</span></div>
+        <button class="gallery-like${liked ? ' liked' : ''}" data-key="${key}" aria-label="ถูกใจ">
+          <span class="like-heart">${liked ? '♥' : '♡'}</span>
+          <span class="like-count">${count}</span>
+        </button>
+      </div>`;
+    }).join('');
+    setupLightbox(all);
+    setupLikes();
+
+    if (all.length > GALLERY_PREVIEW) {
+      const moreBtn = document.getElementById('galleryMore');
+      moreBtn.dataset.th = `ดูรูปทั้งหมด (${all.length})`;
+      moreBtn.dataset.en = `View all photos (${all.length})`;
+      moreBtn.textContent = moreBtn.dataset[currentLang];
+      moreBtn.onclick = () => openLightbox(all, GALLERY_PREVIEW);
+      document.getElementById('galleryMoreWrap').style.display = 'block';
     }
   }
 
@@ -2240,17 +2235,6 @@
         btn.disabled = false;
       });
     });
-  }
-
-  function renderPlaceholders(grid) {
-    grid.innerHTML = PLACEHOLDER_COLORS.map((colors, i) => {
-      const h = PLACEHOLDER_HEIGHTS[i];
-      return `<div class="gallery-item placeholder-item">
-        <div class="gallery-placeholder" style="height:${h}px;background:linear-gradient(135deg,${colors[0]},${colors[1]});display:flex;align-items:center;justify-content:center;">
-          <span style="font-size:2rem;opacity:0.4;color:white;">♡</span>
-        </div>
-      </div>`;
-    }).join('');
   }
 
   // Lightbox
