@@ -264,7 +264,8 @@
     <div class="row">
       <div style="flex:1"><label>จำนวนคน</label><input class="field" id="gCount" type="number" min="1" value="1" /></div>
       <div style="flex:1"><label>ฝ่าย</label>
-        <select class="field" id="gSide"><option value="">—</option><option>เจ้าบ่าว</option><option>เจ้าสาว</option><option>ร่วม</option></select>
+        <input class="field" id="gSide" list="sideOptions" />
+        <datalist id="sideOptions"></datalist>
       </div>
     </div>
     <label>กลุ่ม (เช่น ญาติ, เพื่อนมหาลัย, ที่ทำงาน)</label>
@@ -475,6 +476,12 @@
     const gs = groups();
     sel.innerHTML = '<option value="">ทุกกลุ่ม</option>' + gs.map((g) => `<option${g === cur ? ' selected' : ''}>${esc(g)}</option>`).join('');
     $('groupOptions').innerHTML = gs.map((g) => `<option value="${esc(g)}">`).join('');
+    // Sides come from the data (e.g. the couple's names), falling back to the defaults
+    const sides = [...new Set(state.guests.map((g) => g.side).filter(Boolean))];
+    const sideList = sides.length ? sides : ['เจ้าบ่าว', 'เจ้าสาว', 'ร่วม'];
+    const sf = $('sideFilter'), curSide = sf.value;
+    sf.innerHTML = '<option value="">ทุกฝ่าย</option>' + sideList.map((x) => `<option${x === curSide ? ' selected' : ''}>${esc(x)}</option>`).join('');
+    $('sideOptions').innerHTML = sideList.map((x) => `<option value="${esc(x)}">`).join('');
   }
 
   function filteredGuests() {
@@ -809,7 +816,7 @@
     const name = $('gName').value.trim();
     if (!name) return toast('กรุณากรอกชื่อ');
     const data = {
-      name, count: Math.max(1, parseInt($('gCount').value) || 1), side: $('gSide').value,
+      name, count: Math.max(1, parseInt($('gCount').value) || 1), side: $('gSide').value.trim(),
       group: $('gGroup').value.trim(), note: $('gNote').value.trim(), table: parseInt($('gTable').value) || null,
     };
     if (data.table) {
