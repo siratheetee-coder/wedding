@@ -227,18 +227,30 @@ app.delete('/api/guest-photos/:filename', (req, res) => {
 });
 
 // Seating plan — open without a secret by request; whole plan stored as one JSON document
-app.get('/api/seating', (req, res) => {
+function readSeating() {
   try {
-    res.json({ seating: JSON.parse(fs.readFileSync(SEATING_FILE, 'utf8')) });
+    return JSON.parse(fs.readFileSync(SEATING_FILE, 'utf8'));
   } catch {
-    res.json({ seating: null });
+    return null;
   }
+}
+
+app.get('/api/seating', (req, res) => {
+  res.set('Cache-Control', 'no-store');
+  const seating = readSeating();
+  if (req.query.v) return res.json({ updatedAt: seating?.updatedAt || null });
+  res.json({ seating });
 });
 
 app.put('/api/seating', (req, res) => {
   const seating = req.body;
   if (!seating || !Array.isArray(seating.guests)) {
     return res.status(400).json({ error: 'invalid seating data' });
+  }
+  // Refuse a save built on an older copy so the client can merge (see api/seating.js)
+  const current = readSeating();
+  if (req.query.base && current?.updatedAt && req.query.base !== current.updatedAt) {
+    return res.status(409).json({ error: 'conflict', seating: current });
   }
   seating.updatedAt = new Date().toISOString();
   fs.writeFileSync(SEATING_FILE, JSON.stringify(seating, null, 2), 'utf8');

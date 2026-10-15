@@ -424,7 +424,7 @@
     s = Object.assign({ capacity: 8, guests: [] }, s);
     if (!Array.isArray(s.tableList)) {
       const old = s.tables || {}, count = s.tableCount || 90;
-      s.tableList = makeTables(VIP_DEFAULT, 0);
+      s.tableList = Array.from({ length: VIP_DEFAULT }, (_, i) => ({ id: 'v' + (i + 1), vip: true }));
       for (let n = 1; n <= count; n++) s.tableList.push({ id: 't' + n, vip: false, name: old[n]?.name, capacity: old[n]?.capacity });
       s.guests.forEach((g) => { g.table = g.table ? 't' + g.table : null; });
       delete s.tables; delete s.tableCount;
@@ -471,42 +471,140 @@
     return PALETTE[h % PALETTE.length];
   }
 
-  // ---------- persistence ----------
-  let saveTimer = null;
+  // ---------- persistence & multi-device sync ----------
+  // Every device saves the whole plan to the server and checks every few seconds
+  // whether another device saved a newer copy. A save names the copy it was built on
+  // (`base`); if someone else saved in between, the server refuses it and we merge:
+  // per guest / per table, our edits win where we changed something, theirs otherwise.
+  let saveTimer = null, saving = false;
+  let base = null;            // last copy we know the server has (for merging)
+  let serverVersion = null;   // its updatedAt
+  const clone = (o) => JSON.parse(JSON.stringify(o));
+  const canon = (o) => JSON.stringify(o, (k, v) => (v && typeof v === 'object' && !Array.isArray(v)
+    ? Object.fromEntries(Object.entries(v).filter(([, x]) => x !== undefined).sort(([a], [b]) => (a < b ? -1 : 1)))
+    : v));
+  function rememberServer(copy) {
+    base = clone(copy);
+    serverVersion = copy.updatedAt || null;
+  }
+
   function setStatus(text, isError) {
     const el = $('saveStatus');
     el.textContent = text;
     el.classList.toggle('error', !!isError);
   }
+  const timeText = (iso) => new Date(iso).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' });
   function persist() {
     try { localStorage.setItem(LOCAL_KEY, JSON.stringify(state)); } catch {}
     setStatus('กำลังบันทึก…');
     clearTimeout(saveTimer);
     saveTimer = setTimeout(saveRemote, 700);
   }
-  async function saveRemote() {
+
+  // Merge two edited copies of a list of {id,...} items against their common base
+  function mergeList(b, mine, theirs) {
+    const B = new Map(b.map((x) => [x.id, x])), M = new Map(mine.map((x) => [x.id, x]));
+    const T = new Map(theirs.map((x) => [x.id, x]));
+    const changed = (x, orig) => !orig || canon(x) !== canon(orig);
+    const out = [];
+    for (const t of theirs) {
+      const m = M.get(t.id), o = B.get(t.id);
+      if (m) out.push(o && changed(m, o) ? m : t);
+      else if (!o || changed(t, o)) out.push(t);          // they added it, or changed what we deleted
+    }
+    for (const m of mine) {
+      if (T.has(m.id)) continue;
+      const o = B.get(m.id);
+      if (!o || changed(m, o)) out.push(m);                // we added it, or changed what they deleted
+    }
+    return out;
+  }
+  function mergeStates(b, mine, theirs) {
+    const merged = clone(theirs);
+    merged.capacity = mine.capacity !== b.capacity ? mine.capacity : theirs.capacity;
+    merged.tableList = mergeList(b.tableList, mine.tableList, theirs.tableList);
+    merged.guests = mergeList(b.guests, mine.guests, theirs.guests);
+    const m = migrate(merged);
+    m.tableList.sort((x, y) => (y.vip ? 1 : 0) - (x.vip ? 1 : 0));
+    return m;
+  }
+
+  async function saveRemote(attempt = 0) {
+    saveTimer = null;
+    saving = true;
+    const sent = clone(state);
     try {
-      const res = await fetch('/api/seating', {
+      const q = serverVersion ? `?base=${encodeURIComponent(serverVersion)}` : '';
+      const res = await fetch('/api/seating' + q, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(state),
+        body: JSON.stringify(sent),
       });
+      if (res.status === 409 && attempt < 3) {
+        // Someone else saved first: fold their changes in, then save again
+        const theirs = migrate((await res.json()).seating || defaultState());
+        state = base ? mergeStates(base, state, theirs) : state;
+        rememberServer(theirs);
+        refreshUI();
+        saving = false;
+        return saveRemote(attempt + 1);
+      }
       if (!res.ok) throw new Error(res.status);
       const data = await res.json();
+      sent.updatedAt = data.updatedAt;
+      rememberServer(sent);
       state.updatedAt = data.updatedAt;
-      setStatus('บันทึกแล้ว ' + new Date(data.updatedAt).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' }));
+      if (!saveTimer) setStatus('บันทึกแล้ว ' + timeText(data.updatedAt));
     } catch {
       setStatus('บันทึกขึ้นเซิร์ฟเวอร์ไม่สำเร็จ (เก็บสำรองในเครื่องแล้ว)', true);
+    } finally {
+      saving = false;
     }
   }
   window.addEventListener('beforeunload', (e) => {
-    if (saveTimer && $('saveStatus').textContent === 'กำลังบันทึก…') { e.preventDefault(); e.returnValue = ''; }
+    if (saveTimer || saving) { e.preventDefault(); e.returnValue = ''; }
   });
+
+  // Re-render after the plan was replaced underneath the UI
+  function refreshUI() {
+    selected = new Set([...selected].filter((id) => findGuest(id)));
+    if (openTable && !tableById(openTable)) { openTable = null; closeModal('tableModal'); }
+    render();
+    if (openTable) renderTableModal();
+  }
+
+  // Pick up saves from other devices
+  const POLL_MS = 5000;
+  let polling = false;
+  async function poll() {
+    if (polling || saving || saveTimer || document.hidden || !state) return;
+    // Don't swap data out from under a form someone is filling in
+    if (['guestModal', 'swapModal', 'importModal', 'settingsModal', 'autoModal'].some((id) => $(id).classList.contains('open'))) return;
+    polling = true;
+    try {
+      const v = await (await fetch('/api/seating?v=1', { cache: 'no-store' })).json();
+      if (!v.updatedAt || v.updatedAt === serverVersion) return;
+      const { seating } = await (await fetch('/api/seating', { cache: 'no-store' })).json();
+      if (!seating || saving || saveTimer) return;
+      state = migrate(seating);
+      rememberServer(state);
+      try { localStorage.setItem(LOCAL_KEY, JSON.stringify(state)); } catch {}
+      refreshUI();
+      setStatus('ซิงค์แล้ว ' + timeText(state.updatedAt));
+      toast('อัปเดตจากอุปกรณ์อื่นแล้ว');
+    } catch {
+      // offline — try again next tick
+    } finally {
+      polling = false;
+    }
+  }
+  setInterval(poll, POLL_MS);
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) poll(); });
 
   async function loadState() {
     let remote = null;
     try {
-      const res = await fetch('/api/seating');
+      const res = await fetch('/api/seating', { cache: 'no-store' });
       if (!res.ok) throw new Error(res.status);
       remote = (await res.json()).seating;
     } catch (e) {
@@ -516,6 +614,7 @@
     try { local = JSON.parse(localStorage.getItem(LOCAL_KEY) || 'null'); } catch {}
     // Prefer the server copy; fall back to a local backup if the server has nothing yet
     state = migrate(remote || local || defaultState());
+    if (remote) rememberServer(state);
     if (!remote && local && local.guests?.length) persist();
     return 'ok';
   }
