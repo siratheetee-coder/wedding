@@ -28,10 +28,11 @@ module.exports = async (req, res) => {
       if (!seating || !Array.isArray(seating.guests)) {
         return res.status(400).json({ error: 'invalid seating data' });
       }
+      // Compare against the stored plan itself — the version key is only a cheap hint
+      // for polling and can lag behind if an older page saved without updating it
       const base = url.searchParams.get('base');
-      const current = await currentVersion();
-      if (base && current && base !== current) {
-        const latest = await redis.get(KEYS.seating);
+      const latest = await redis.get(KEYS.seating);
+      if (base && latest?.updatedAt && base !== latest.updatedAt) {
         return res.status(409).json({ error: 'conflict', seating: latest });
       }
       seating.updatedAt = new Date().toISOString();

@@ -546,14 +546,17 @@
         saving = false;
         return saveRemote(attempt + 1);
       }
-      if (!res.ok) throw new Error(res.status);
+      if (!res.ok) throw new Error(res.status === 409 ? 'ชนกับอุปกรณ์อื่น' : `HTTP ${res.status}`);
       const data = await res.json();
       sent.updatedAt = data.updatedAt;
       rememberServer(sent);
       state.updatedAt = data.updatedAt;
       if (!saveTimer) setStatus('บันทึกแล้ว ' + timeText(data.updatedAt));
-    } catch {
-      setStatus('บันทึกขึ้นเซิร์ฟเวอร์ไม่สำเร็จ (เก็บสำรองในเครื่องแล้ว)', true);
+    } catch (err) {
+      // Keep the change locally and try again shortly
+      const why = err instanceof TypeError ? 'ออฟไลน์' : err.message;
+      setStatus(`บันทึกขึ้นเซิร์ฟเวอร์ไม่สำเร็จ (${why}) — เก็บไว้ในเครื่องแล้ว จะลองใหม่อัตโนมัติ`, true);
+      if (!saveTimer) saveTimer = setTimeout(saveRemote, 10000);
     } finally {
       saving = false;
     }
@@ -583,6 +586,7 @@
       if (!v.updatedAt || v.updatedAt === serverVersion) return;
       const { seating } = await (await fetch('/api/seating', { cache: 'no-store' })).json();
       if (!seating || saving || saveTimer) return;
+      if (seating.updatedAt === serverVersion) return;   // version hint was stale; nothing new
       state = migrate(seating);
       rememberServer(state);
       try { localStorage.setItem(LOCAL_KEY, JSON.stringify(state)); } catch {}
