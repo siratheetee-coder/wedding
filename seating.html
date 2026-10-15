@@ -546,7 +546,10 @@
         saving = false;
         return saveRemote(attempt + 1);
       }
-      if (!res.ok) throw new Error(res.status === 409 ? 'ชนกับอุปกรณ์อื่น' : `HTTP ${res.status}`);
+      if (!res.ok) {
+        const detail = await res.json().then((d) => d.detail).catch(() => '');
+        throw new Error(res.status === 409 ? 'ชนกับอุปกรณ์อื่น' : `HTTP ${res.status}${detail ? ': ' + detail : ''}`);
+      }
       const data = await res.json();
       sent.updatedAt = data.updatedAt;
       rememberServer(sent);
@@ -574,7 +577,7 @@
   }
 
   // Pick up saves from other devices
-  const POLL_MS = 5000;
+  const POLL_MS = 15000;   // each check is a Redis read; keep well inside the free quota
   let polling = false;
   async function poll() {
     if (polling || saving || saveTimer || document.hidden || !state) return;

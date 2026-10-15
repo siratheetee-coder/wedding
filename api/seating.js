@@ -44,6 +44,7 @@ module.exports = async (req, res) => {
     return res.status(405).json({ error: 'Method not allowed' });
   } catch (err) {
     console.error('seating error', err);
-    return res.status(500).json({ error: 'Internal error' });
+    // Pass the storage error through (e.g. Upstash quota or size limits) so the page can show it
+    return res.status(500).json({ error: 'Internal error', detail: String(err?.message || err).slice(0, 300) });
   }
 };
