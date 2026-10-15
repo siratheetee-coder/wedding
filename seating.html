@@ -82,7 +82,8 @@
 
     /* TABLE GRID */
     .tables-wrap { flex: 1; overflow-y: auto; padding: 16px 20px 40px; }
-    .tables-head { display: flex; gap: 8px; align-items: center; margin-bottom: 12px; flex-wrap: wrap; }
+    /* Stays pinned to the top of the table area while scrolling */
+    .tables-head { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; position: sticky; top: -16px; z-index: 5; background: var(--cream); margin: -16px -20px 12px; padding: 16px 20px 10px; border-bottom: 1px solid var(--border); }
     .tables-head .field { width: auto; }
     .hint { font-size: 0.78rem; color: var(--text-muted); }
     .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 10px; }
@@ -170,6 +171,7 @@
       .main[data-view="tables"] .sidebar { display: none; }
       .main[data-view="guests"] .tables-wrap { display: none; }
       .tables-wrap { padding: 12px 16px 40px; }
+      .tables-head { top: -12px; margin: -12px -16px 12px; padding: 12px 16px 10px; }
       .grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
     }
 
@@ -1030,7 +1032,11 @@
     renderGuestList();
   });
   ['guestSearch', 'groupFilter', 'sideFilter'].forEach((id) => $(id).addEventListener('input', renderGuestList));
-  ['tableSearch', 'tableFilter'].forEach((id) => $(id).addEventListener('input', renderGrid));
+  // Jump back to the top so the matching tables are in view
+  ['tableSearch', 'tableFilter'].forEach((id) => $(id).addEventListener('input', () => {
+    renderGrid();
+    document.querySelector('.tables-wrap').scrollTop = 0;
+  }));
   document.querySelector('.mobile-tabs').addEventListener('click', (e) => {
     const b = e.target.closest('button');
     if (!b) return;
