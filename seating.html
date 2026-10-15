@@ -109,6 +109,12 @@
     .tc-cap { font-size: 0.78rem; font-weight: 600; }
     .tc-clear { border: none; background: none; color: var(--text-muted); cursor: pointer; font-size: 0.8rem; padding: 0 2px; line-height: 1; }
     .tc-clear:hover { color: var(--danger); }
+    .tc-handle { display: none; cursor: grab; touch-action: none; user-select: none; -webkit-user-select: none; font-size: 1.1rem; line-height: 1; padding: 2px 6px; margin: -2px -4px -2px -6px; color: var(--accent); }
+    .reorder .tc-handle { display: inline-block; }
+    .reorder .tc-clear, .drag-ghost .tc-clear { display: none; }
+    .table-card.picked { outline: 3px solid var(--accent); outline-offset: 1px; }
+    .drag-ghost { position: fixed; z-index: 70; pointer-events: none; opacity: 0.9; box-shadow: 0 8px 24px rgba(0,0,0,0.18); transform: rotate(1.5deg); }
+    .btn.on { background: var(--accent); border-color: var(--accent); color: white; }
     .add-row { display: flex; gap: 6px; }
     .add-row .field:first-child { flex: 1; }
     .add-row .field.count { width: 64px; }
@@ -251,6 +257,7 @@
           <option value="full">เต็มแล้ว</option>
           <option value="over">เกินจำนวน</option>
         </select>
+        <button class="btn" id="reorderBtn">⇅ จัดเรียงโต๊ะ</button>
         <span class="hint" id="tableHint"></span>
       </div>
       <div id="grid"></div>
@@ -706,7 +713,9 @@
       ? `เลือก ${selected.size} รายการ (${selPeople} คน) — แตะโต๊ะเพื่อจัดลง · <a href="#" id="clearSel">ยกเลิก</a>`
       : 'ลากชื่อไปวางบนโต๊ะ หรือแตะเลือกชื่อแล้วแตะโต๊ะ';
     const from = [...new Set([...selected].map(findGuest).filter((g) => g && g.table).map((g) => g.table))];
-    $('tableHint').innerHTML = selected.size
+    $('tableHint').innerHTML = reorderMode
+      ? '<b>โหมดจัดเรียง:</b> ลาก ⠿ ไปวางบนอีกโต๊ะ หรือแตะ 2 โต๊ะเพื่อสลับตำแหน่ง'
+      : selected.size
       ? `<b>${from.length ? `ย้ายจาก ${from.map(labelOf).join(', ')}` : 'เลือกแล้ว'} ${selPeople} คน</b> — แตะโต๊ะปลายทาง · <a href="#" data-cancel-sel>ยกเลิก</a>`
       : '';
   }
@@ -743,10 +752,12 @@
       if (used > cap) cls.push('over');
       if (selected.size) cls.push(used + selPeople <= cap ? 'target' : 'dim');
       if (t.vip) cls.push('vip');
+      if (reorderPick === n) cls.push('picked');
       const shown = gs.slice(0, 4);
       const card = `
         <div class="${cls.join(' ')}" data-table="${n}">
           <div class="tc-head">
+            <span class="tc-handle" data-handle title="ลากเพื่อสลับตำแหน่งโต๊ะ">⠿</span>
             <span class="tc-no">${shortLabel(n)}</span>
             <span class="tc-name">${esc(nameOf(n))}</span>
             <span class="tc-cap ${used > cap ? 'over' : used === cap ? 'full' : ''}">${used}/${cap}</span>
@@ -763,6 +774,7 @@
     }
     const vipCount = state.tableList.filter((t) => t.vip).length;
     const regCount = state.tableList.length - vipCount;
+    $('grid').classList.toggle('reorder', reorderMode);
     $('grid').innerHTML = `
       <div class="stage">เวที</div>
       <div class="section-label">โต๊ะ VIP · แถวหน้าสุด (${vipCount}) <button class="btn" data-add-table="vip">＋ เพิ่มโต๊ะ VIP</button></div>
@@ -926,9 +938,88 @@
     const card = e.target.closest('.table-card');
     if (!card) return;
     const n = card.dataset.table;
+    if (reorderMode) {
+      if (!reorderPick) reorderPick = n;
+      else if (reorderPick === n) reorderPick = null;
+      else { swapTables(reorderPick, n); reorderPick = null; }
+      return renderGrid();
+    }
     if (selected.size) return assign([...selected], n);
     openTableModal(n);
   });
+
+  // ---------- reorder tables ----------
+  // Tables are numbered by position, so swapping two positions renumbers them.
+  // Each position keeps its section: a table dragged onto a VIP slot becomes VIP.
+  let reorderMode = false, reorderPick = null;
+  function swapTables(a, b) {
+    const i = state.tableList.findIndex((t) => t.id === a), j = state.tableList.findIndex((t) => t.id === b);
+    if (i < 0 || j < 0 || i === j) return;
+    const A = state.tableList[i], B = state.tableList[j];
+    [A.vip, B.vip] = [B.vip, A.vip];
+    state.tableList[i] = B;
+    state.tableList[j] = A;
+    persist();
+    render();
+    toast(`สลับตำแหน่งแล้ว — ตอนนี้เป็น${labelOf(a)} และ${labelOf(b)}`);
+  }
+  function setReorder(on) {
+    reorderMode = on;
+    reorderPick = null;
+    if (on) selected.clear();
+    $('reorderBtn').classList.toggle('on', on);
+    $('reorderBtn').textContent = on ? '✓ เสร็จ' : '⇅ จัดเรียงโต๊ะ';
+    render();
+  }
+  $('reorderBtn').addEventListener('click', () => setReorder(!reorderMode));
+
+  // Pointer-based drag (works with finger on iPad as well as mouse)
+  let tdrag = null;
+  $('grid').addEventListener('pointerdown', (e) => {
+    const h = e.target.closest('[data-handle]');
+    if (!h || !reorderMode) return;
+    e.preventDefault();
+    const card = h.closest('.table-card'), r = card.getBoundingClientRect();
+    const ghost = card.cloneNode(true);
+    ghost.classList.add('drag-ghost');
+    ghost.style.width = r.width + 'px';
+    document.body.appendChild(ghost);
+    tdrag = { id: card.dataset.table, ghost, dx: e.clientX - r.left, dy: e.clientY - r.top, over: null, x: e.clientX, y: e.clientY };
+    card.style.opacity = '0.35';
+    moveGhost(e.clientX, e.clientY);
+    autoScroll();
+  });
+  function moveGhost(x, y) {
+    tdrag.x = x; tdrag.y = y;
+    tdrag.ghost.style.left = x - tdrag.dx + 'px';
+    tdrag.ghost.style.top = y - tdrag.dy + 'px';
+    const over = document.elementFromPoint(x, y)?.closest('#grid .table-card');
+    const id = over && over.dataset.table !== tdrag.id ? over.dataset.table : null;
+    if (id !== tdrag.over) {
+      document.querySelectorAll('#grid .drop-ok').forEach((c) => c.classList.remove('drop-ok'));
+      if (over && id) over.classList.add('drop-ok');
+      tdrag.over = id;
+    }
+  }
+  // Scroll the table area while dragging near its top/bottom edge
+  function autoScroll() {
+    if (!tdrag) return;
+    const wrap = document.querySelector('.tables-wrap'), r = wrap.getBoundingClientRect(), edge = 60;
+    const dy = tdrag.y < r.top + edge ? -12 : tdrag.y > r.bottom - edge ? 12 : 0;
+    if (dy) { wrap.scrollTop += dy; moveGhost(tdrag.x, tdrag.y); }
+    requestAnimationFrame(autoScroll);
+  }
+  window.addEventListener('pointermove', (e) => { if (tdrag) { e.preventDefault(); moveGhost(e.clientX, e.clientY); } }, { passive: false });
+  function endTableDrag(drop) {
+    if (!tdrag) return;
+    const { id, over, ghost } = tdrag;
+    tdrag = null;
+    ghost.remove();
+    if (drop && over) swapTables(id, over);
+    else renderGrid();
+  }
+  window.addEventListener('pointerup', () => endTableDrag(true));
+  window.addEventListener('pointercancel', () => endTableDrag(false));
 
   // filters
   $('listFilter').addEventListener('click', (e) => {
@@ -1178,6 +1269,7 @@
   // Move: pick guests here, then tap the destination table in the grid
   function startMove(ids) {
     if (!ids.length) return;
+    if (reorderMode) setReorder(false);
     selected = new Set(ids);
     openTable = null;
     closeModal('tableModal');
