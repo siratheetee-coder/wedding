@@ -801,7 +801,7 @@
     }
 
     /* ── ONLINE GIFT ── */
-    #online-gift { background: var(--cream); }
+    #online-gift { background: var(--cream); overflow: hidden; }
     .gift-card {
       max-width: 420px;
       margin: 8px auto 0;
@@ -839,13 +839,7 @@
     }
 
     /* ── GUESTBOOK ── */
-    #guestbook {
-      background: var(--cream);
-      overflow: hidden;
-      position: relative;
-      padding-top: 24px;
-    }
-    #online-gift { padding-bottom: 48px; }
+    .guestbook-wrap { margin-top: 56px; }
     .guestbook-empty {
       max-width: 480px;
       margin: 24px auto 0;
@@ -1697,7 +1691,7 @@
     <li><button id="langToggle" class="lang-toggle">EN</button></li>
     <li><a href="#hero" data-th="หน้าแรก" data-en="Home">หน้าแรก</a></li>
     <li><a href="#story" data-th="เรื่องราวของเรา" data-en="Our Story">เรื่องราวของเรา</a></li>
-    <li><a href="#guestbook" data-th="คำอวยพร" data-en="Guestbook">คำอวยพร</a></li>
+    <li><a href="#online-gift" data-th="คำอวยพร" data-en="Guestbook">คำอวยพร</a></li>
     <li><a href="#gallery" data-th="แกลเลอรี่" data-en="Gallery">แกลเลอรี่</a></li>
     <li><a href="#live-photos" data-th="Live Photos" data-en="Live Photos">Live Photos</a></li>
   </ul>
@@ -1865,32 +1859,24 @@
     </div>
     <div class="gift-thanks" data-th="ปิ๋มและโต้ ขอขอบคุณค่ะ/ครับ ♡" data-en="With love and gratitude, Pim &amp; Auto ♡">ปิ๋มและโต้ ขอขอบคุณค่ะ/ครับ ♡</div>
   </div>
-</section>
-
-<!-- GUESTBOOK -->
-<section id="guestbook">
-  <div class="section-body fade-up">
-    <div class="section-label">Guestbook</div>
-    <h2 class="section-title" data-th="คำอวยพรจากเพื่อนๆ" data-en="Wishes From Friends">คำอวยพรจากเพื่อนๆ</h2>
-    <div class="section-divider"></div>
-    <p data-th="ข้อความรักและคำอวยพรที่ทุกคนฝากไว้ให้เรา" data-en="Love and blessings left by our friends">ข้อความรักและคำอวยพรที่ทุกคนฝากไว้ให้เรา</p>
+  <div class="guestbook-wrap" id="guestbook">
+    <div class="guestbook-board fade-up" id="guestbookBoard"></div>
+    <p class="guestbook-empty" id="guestbookEmpty" style="display:none"
+       data-th="ร่วมอวยพรกับคู่บ่าวสาวได้ที่ด้านล่าง ♡"
+       data-en="Send your wishes to the couple below ♡">ร่วมอวยพรกับคู่บ่าวสาวได้ที่ด้านล่าง ♡</p>
+    <form class="form-container wish-form fade-up" id="wishForm" novalidate>
+      <div class="form-group">
+        <label for="wishName" data-th="ชื่อของคุณ" data-en="Your Name">ชื่อของคุณ</label>
+        <input type="text" id="wishName" maxlength="60" autocomplete="name" placeholder="ชื่อเล่น หรือ ชื่อ-นามสกุล" data-th-placeholder="ชื่อเล่น หรือ ชื่อ-นามสกุล" data-en-placeholder="Nickname or full name" />
+      </div>
+      <div class="form-group">
+        <label for="wishMessage" data-th="คำอวยพร" data-en="Your Wish">คำอวยพร</label>
+        <textarea id="wishMessage" maxlength="300" placeholder="เขียนคำอวยพรถึงคู่บ่าวสาว…" data-th-placeholder="เขียนคำอวยพรถึงคู่บ่าวสาว…" data-en-placeholder="Write your wishes for the couple…"></textarea>
+      </div>
+      <button type="submit" class="btn-submit" id="wishSubmit" data-th="ส่งคำอวยพร ♡" data-en="Send Wishes ♡">ส่งคำอวยพร ♡</button>
+      <div class="wish-error" id="wishError" role="alert"></div>
+    </form>
   </div>
-  <div class="guestbook-board fade-up" id="guestbookBoard"></div>
-  <p class="guestbook-empty" id="guestbookEmpty" style="display:none"
-     data-th="ร่วมอวยพรกับคู่บ่าวสาวได้ที่ด้านล่าง ♡"
-     data-en="Send your wishes to the couple below ♡">ร่วมอวยพรกับคู่บ่าวสาวได้ที่ด้านล่าง ♡</p>
-  <form class="form-container wish-form fade-up" id="wishForm" novalidate>
-    <div class="form-group">
-      <label for="wishName" data-th="ชื่อของคุณ" data-en="Your Name">ชื่อของคุณ</label>
-      <input type="text" id="wishName" maxlength="60" autocomplete="name" placeholder="ชื่อเล่น หรือ ชื่อ-นามสกุล" data-th-placeholder="ชื่อเล่น หรือ ชื่อ-นามสกุล" data-en-placeholder="Nickname or full name" />
-    </div>
-    <div class="form-group">
-      <label for="wishMessage" data-th="คำอวยพร" data-en="Your Wish">คำอวยพร</label>
-      <textarea id="wishMessage" maxlength="300" placeholder="เขียนคำอวยพรถึงคู่บ่าวสาว…" data-th-placeholder="เขียนคำอวยพรถึงคู่บ่าวสาว…" data-en-placeholder="Write your wishes for the couple…"></textarea>
-    </div>
-    <button type="submit" class="btn-submit" id="wishSubmit" data-th="ส่งคำอวยพร ♡" data-en="Send Wishes ♡">ส่งคำอวยพร ♡</button>
-    <div class="wish-error" id="wishError" role="alert"></div>
-  </form>
 </section>
 
 <!-- GALLERY -->
@@ -2093,7 +2079,7 @@
         wrap.appendChild(b);
       }
     }
-    ['story', 'gallery', 'live-photos', 'guestbook'].forEach(id => createSectionBubbles(id, 9));
+    ['story', 'gallery', 'live-photos', 'online-gift'].forEach(id => createSectionBubbles(id, 9));
   })();
 
   // COUNTDOWN
