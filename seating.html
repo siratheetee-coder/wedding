@@ -193,7 +193,6 @@
     <div class="toolbar">
       <button class="btn btn-primary" id="importBtn">＋ นำเข้ารายชื่อ</button>
       <button class="btn" id="addGuestBtn">＋ เพิ่มแขก</button>
-      <button class="btn" id="rsvpBtn">ดึงจาก RSVP</button>
       <button class="btn" id="autoBtn">✦ จัดอัตโนมัติ</button>
       <button class="btn" id="exportBtn">↓ CSV</button>
       <button class="btn" id="printBtn">พิมพ์</button>
@@ -401,8 +400,6 @@
   const uid = () => Math.random().toString(36).slice(2, 10) + Date.now().toString(36).slice(-4);
   const LOCAL_KEY = 'wedding_seating_backup';
 
-  // Only needed to pull RSVP registrations (they include phone numbers)
-  let SECRET = sessionStorage.getItem('wedding_secret') || '';
   let state = null;
   let listFilter = 'unseated';
   let selected = new Set();   // guest ids selected for tap-to-assign
@@ -681,7 +678,7 @@
     const list = filteredGuests();
     const el = $('guestList');
     if (!state.guests.length) {
-      el.innerHTML = `<div class="empty">ยังไม่มีรายชื่อแขก<br>กด <b>＋ นำเข้ารายชื่อ</b> เพื่อวางรายชื่อจาก Excel<br>หรือ <b>ดึงจาก RSVP</b> จากผู้ลงทะเบียนบนเว็บ</div>`;
+      el.innerHTML = `<div class="empty">ยังไม่มีรายชื่อแขก<br>กด <b>＋ นำเข้ารายชื่อ</b> เพื่อวางรายชื่อจาก Excel</div>`;
     } else if (!list.length) {
       el.innerHTML = `<div class="empty">${listFilter === 'unseated' ? '🎉 จัดที่นั่งครบทุกคนแล้ว' : 'ไม่พบรายชื่อ'}</div>`;
     } else {
@@ -1036,37 +1033,6 @@
     closeModal('importModal');
     render();
     toast(`นำเข้า ${rows.length} รายการ (${rows.reduce((s, r) => s + r.count, 0)} คน) แล้ว`);
-  });
-
-  // ---------- RSVP ----------
-  $('rsvpBtn').addEventListener('click', async () => {
-    try {
-      if (!SECRET) SECRET = (prompt('ใส่ Admin secret เพื่อดึงรายชื่อจาก RSVP') || '').trim();
-      if (!SECRET) return;
-      const res = await fetch(`/api/registrations?secret=${encodeURIComponent(SECRET)}`);
-      if (res.status === 401) { SECRET = ''; return toast('Secret ไม่ถูกต้อง'); }
-      if (!res.ok) throw new Error();
-      sessionStorage.setItem('wedding_secret', SECRET);
-      const { registrations } = await res.json();
-      const have = new Set(state.guests.map((g) => g.rsvpId).filter(Boolean));
-      const fresh = (registrations || []).filter((r) => !have.has(r.id));
-      if (!fresh.length) return toast('ไม่มีผู้ลงทะเบียนใหม่จาก RSVP');
-      const people = fresh.reduce((s, r) => s + (parseInt(r.guests) || 0) + 1, 0);
-      if (!confirm(`พบผู้ลงทะเบียนใหม่ ${fresh.length} รายการ (${people} คน) — นำเข้าหรือไม่?`)) return;
-      fresh.forEach((r) => {
-        const parts = splitParty({
-          name: r.name, count: (parseInt(r.guests) || 0) + 1, group: 'RSVP', side: '',
-          note: r.guestName ? `มากับ ${r.guestName}` : '', table: null,
-        });
-        parts.forEach((p) => (p.rsvpId = r.id));
-        state.guests.push(...parts);
-      });
-      persist();
-      render();
-      toast(`นำเข้าจาก RSVP ${fresh.length} รายการแล้ว`);
-    } catch {
-      toast('ดึงข้อมูล RSVP ไม่สำเร็จ');
-    }
   });
 
   // ---------- guest modal ----------
