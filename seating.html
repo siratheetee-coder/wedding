@@ -114,6 +114,16 @@
     .reorder .tc-handle { display: inline-block; }
     .reorder .tc-clear, .drag-ghost .tc-clear { display: none; }
     .table-card.picked { outline: 3px solid var(--accent); outline-offset: 1px; }
+    .table-card.picked::after, .ft.picked::after { content: '✓'; position: absolute; top: 4px; right: 6px; width: 20px; height: 20px; border-radius: 50%; background: var(--accent); color: white; font-size: 0.75rem; display: flex; align-items: center; justify-content: center; }
+    .table-card { position: relative; }
+    .placing [data-table]:not(.picked) { cursor: copy; }
+    .placing .table-card:not(.picked):hover { box-shadow: -5px 0 0 var(--accent); }
+    .placing .ft:not(.picked):hover .ft-circle { box-shadow: -6px 0 0 var(--accent); }
+    .placing .picked { opacity: 0.45; }
+    .end-slot { border: 2px dashed var(--accent); border-radius: 4px; color: var(--accent); display: flex; align-items: center; justify-content: center; text-align: center; font-size: 0.8rem; cursor: pointer; min-height: 60px; padding: 8px; background: white; }
+    .plan .end-slot { width: 80px; height: 80px; border-radius: 50%; min-height: 0; font-size: 0.65rem; margin: 0 4px; }
+    .hint .btn { padding: 4px 10px; font-size: 0.75rem; margin-left: 4px; }
+    .hint label { display: inline-flex; align-items: center; gap: 4px; margin-left: 6px; }
     .drag-ghost { position: fixed; z-index: 70; pointer-events: none; opacity: 0.9; box-shadow: 0 8px 24px rgba(0,0,0,0.18); transform: rotate(1.5deg); }
     .btn.on { background: var(--accent); border-color: var(--accent); color: white; }
 
@@ -820,7 +830,7 @@
       : 'ลากชื่อไปวางบนโต๊ะ หรือแตะเลือกชื่อแล้วแตะโต๊ะ';
     const from = [...new Set([...selected].map(findGuest).filter((g) => g && g.table).map((g) => g.table))];
     $('tableHint').innerHTML = reorderMode
-      ? '<b>โหมดจัดเรียง:</b> ลาก ⠿ ไปวางบนอีกโต๊ะ หรือแตะ 2 โต๊ะเพื่อสลับตำแหน่ง'
+      ? reorderHint()
       : selected.size
       ? `<b>${from.length ? `ย้ายจาก ${from.map(labelOf).join(', ')}` : 'เลือกแล้ว'} ${selPeople} คน</b> — แตะโต๊ะปลายทาง · <a href="#" data-cancel-sel>ยกเลิก</a>`
       : '';
@@ -869,7 +879,7 @@
     if (!forPrint) {
       if (selected.size) cls.push(used + selPeople <= cap ? 'target' : 'dim');
       else if (searching) cls.push(tableMatches(n) ? 'hit' : 'dim');
-      if (reorderPick === n) cls.push('picked');
+      if (reorderSel.includes(n)) cls.push('picked');
     }
     const tip = `${labelOf(n)}${nameOf(n) ? ' · ' + nameOf(n) : ''} (${used}/${cap})\n` + gs.map((g) => `${g.name}${g.count > 1 ? ' ×' + g.count : ''}`).join('\n');
     return `
@@ -895,18 +905,18 @@
     const left = reg.slice(0, leftN), right = reg.slice(leftN);
     const cols = Math.max(1, L.perRow);
     const tbl = (t) => planTable(t, selPeople, searching, forPrint);
-    const side = (list, name) => `
+    const side = (list, name, last) => `
       <div class="plan-side">
         <div class="plan-side-label">${name} (${list.length} โต๊ะ)${sideSummary(list)}</div>
-        <div class="plan-side-grid" style="--cols:${Math.min(cols, Math.max(1, list.length))}">${list.map(tbl).join('')}</div>
+        <div class="plan-side-grid" style="--cols:${Math.min(cols, Math.max(1, list.length + (last && placing() && !forPrint ? 1 : 0)))}">${list.map(tbl).join('')}${last && !forPrint ? endSlot('regular') : ''}</div>
       </div>`;
     return `<div class="plan">
         <div class="stage">เวที</div>
-        ${vip.length ? `<div class="plan-vip"><div class="plan-vip-label">VIP · แถวหน้าสุด</div>${vip.map(tbl).join('')}</div>` : ''}
+        ${vip.length || (!forPrint && placing()) ? `<div class="plan-vip"><div class="plan-vip-label">VIP · แถวหน้าสุด</div>${vip.map(tbl).join('')}${forPrint ? '' : endSlot('vip')}</div>` : ''}
         <div class="plan-sides">
           ${side(left, 'ฝั่งซ้าย')}
           <div class="plan-aisle">ทางเดิน</div>
-          ${side(right, 'ฝั่งขวา')}
+          ${side(right, 'ฝั่งขวา', true)}
         </div>
       </div>`;
   }
@@ -925,6 +935,7 @@
         <span>แตะโต๊ะเพื่อจัดแขก · ใช้ "จัดเรียงโต๊ะ" เพื่อลากสลับตำแหน่ง</span>
       </div>
       <div class="plan-scroll">${planMarkup(false)}</div>`;
+    $('grid').classList.toggle('placing', placing());
     fitPlan();
   }
   // Shrink the plan to fit narrow screens (down to 55%); wider still scrolls sideways
@@ -972,7 +983,7 @@
       if (used > cap) cls.push('over');
       if (selected.size) cls.push(used + selPeople <= cap ? 'target' : 'dim');
       if (t.vip) cls.push('vip');
-      if (reorderPick === n) cls.push('picked');
+      if (reorderSel.includes(n)) cls.push('picked');
       const shown = gs.slice(0, 4);
       const card = `
         <div class="${cls.join(' ')}" data-table="${n}">
@@ -998,9 +1009,10 @@
     $('grid').innerHTML = `
       <div class="stage">เวที</div>
       <div class="section-label">โต๊ะ VIP · แถวหน้าสุด (${vipCount}) <button class="btn" data-add-table="vip">＋ เพิ่มโต๊ะ VIP</button></div>
-      <div class="grid">${vipHtml || '<div class="hint">ไม่มีโต๊ะ VIP</div>'}</div>
+      <div class="grid">${vipHtml || (placing() ? '' : '<div class="hint">ไม่มีโต๊ะ VIP</div>')}${endSlot('vip')}</div>
       <div class="section-label">โต๊ะทั่วไป (${regCount}) <button class="btn" data-add-table="regular">＋ เพิ่มโต๊ะ</button></div>
-      <div class="grid">${html || '<div class="hint">ไม่พบโต๊ะ</div>'}</div>`;
+      <div class="grid">${html || '<div class="hint">ไม่พบโต๊ะ</div>'}${endSlot('regular')}</div>`;
+    $('grid').classList.toggle('placing', placing());
   }
 
   const findGuest = (id) => state.guests.find((g) => g.id === id);
@@ -1153,6 +1165,8 @@
   $('grid').addEventListener('click', (e) => {
     const add = e.target.closest('[data-add-table]');
     if (add) return addTable(add.dataset.addTable === 'vip');
+    const slot = e.target.closest('[data-slot]');
+    if (slot) { moveTables(reorderSel, null, slot.dataset.slot === 'vip'); return finishPlacing(); }
     const clr = e.target.closest('[data-clear]');
     if (clr) return clearTable(clr.dataset.clear);
     if (swallowClick) return;
@@ -1160,10 +1174,14 @@
     if (!card) return;
     const n = card.dataset.table;
     if (reorderMode) {
-      if (!reorderPick) reorderPick = n;
-      else if (reorderPick === n) reorderPick = null;
-      else { swapTables(reorderPick, n); reorderPick = null; }
-      return renderGrid();
+      if (!placing()) {
+        reorderSel = reorderSel.includes(n) ? reorderSel.filter((x) => x !== n) : [...reorderSel, n];
+        return render();
+      }
+      if (reorderSel.includes(n)) return toast('แตะโต๊ะอื่นที่ไม่ได้เลือก เพื่อวางไว้ก่อนโต๊ะนั้น');
+      if (placeSwap && reorderSel.length === 1) swapTables(reorderSel[0], n);
+      else moveTables(reorderSel, n);
+      return finishPlacing();
     }
     if (selected.size) return assign([...selected], n);
     openTableModal(n);
@@ -1172,7 +1190,59 @@
   // ---------- reorder tables ----------
   // Tables are numbered by position, so swapping two positions renumbers them.
   // Each position keeps its section: a table dragged onto a VIP slot becomes VIP.
-  let reorderMode = false, reorderPick = null;
+  // Reorder mode: tap tables to select several, then "move" and tap the table they
+  // should go in front of (or an end slot). Nothing gets swapped out; the rest shift.
+  let reorderMode = false, reorderSel = [], reorderStep = 'pick', placeSwap = false;
+  const placing = () => reorderMode && reorderStep === 'place' && reorderSel.length > 0;
+  const endSlot = (kind) => (placing() ? `<div class="end-slot" data-slot="${kind}">วางท้ายสุด${kind === 'vip' ? '<br>ของ VIP' : ''}</div>` : '');
+  function reorderHint() {
+    const n = reorderSel.length;
+    if (placing()) {
+      return `<b>แตะโต๊ะที่จะให้ ${n} โต๊ะที่เลือกไปอยู่ "ก่อน" โต๊ะนั้น</b> หรือแตะ "วางท้ายสุด"`
+        + (n === 1 ? ` <label><input type="checkbox" data-ro="swap"${placeSwap ? ' checked' : ''} /> สลับที่แทน</label>` : '')
+        + ` <button class="btn" data-ro="back">ยกเลิก</button>`;
+    }
+    return n
+      ? `<b>เลือกแล้ว ${n} โต๊ะ</b> (${state.tableList.filter((t) => reorderSel.includes(t.id)).map((t) => shortLabel(t.id)).join(', ')}) <button class="btn btn-primary" data-ro="place">ย้ายไปแทรก →</button> <button class="btn" data-ro="clear">ล้างที่เลือก</button>`
+      : '<b>จัดเรียง:</b> แตะเลือกโต๊ะที่จะย้าย (เลือกได้หลายโต๊ะ) · หรือลาก ⠿ ไปวางบนอีกโต๊ะเพื่อสลับ 2 โต๊ะ';
+  }
+  function finishPlacing() {
+    reorderSel = []; reorderStep = 'pick'; placeSwap = false;
+    render();
+  }
+  // Move tables (kept in their current order) in front of `beforeId`, or to the end
+  // of the VIP / regular section. Moved tables take on the section they land in.
+  function moveTables(ids, beforeId, toVip) {
+    const moving = state.tableList.filter((t) => ids.includes(t.id));
+    const rest = state.tableList.filter((t) => !ids.includes(t.id));
+    if (!moving.length) return;
+    let idx, vip;
+    if (beforeId) {
+      idx = rest.findIndex((t) => t.id === beforeId);
+      if (idx < 0) return;
+      vip = rest[idx].vip;
+    } else {
+      vip = !!toVip;
+      idx = vip ? rest.filter((t) => t.vip).length : rest.length;
+    }
+    moving.forEach((t) => (t.vip = vip));
+    rest.splice(idx, 0, ...moving);
+    state.tableList = rest;
+    persist();
+    const labels = moving.map((t) => shortLabel(t.id));
+    toast(`ย้าย ${moving.length} โต๊ะแล้ว — ตอนนี้เป็น ${labels.length > 1 ? labels[0] + '–' + labels[labels.length - 1] : labels[0]} · เรียงเลขใหม่แล้ว`, 3500);
+  }
+  $('tableHint').addEventListener('click', (e) => {
+    const b = e.target.closest('[data-ro]');
+    if (!b || b.dataset.ro === 'swap') return;
+    if (b.dataset.ro === 'place') reorderStep = 'place';
+    if (b.dataset.ro === 'clear') reorderSel = [];
+    if (b.dataset.ro === 'back') reorderStep = 'pick';
+    render();
+  });
+  $('tableHint').addEventListener('change', (e) => {
+    if (e.target.dataset.ro === 'swap') placeSwap = e.target.checked;
+  });
   function swapTables(a, b) {
     const i = state.tableList.findIndex((t) => t.id === a), j = state.tableList.findIndex((t) => t.id === b);
     if (i < 0 || j < 0 || i === j) return;
@@ -1186,7 +1256,7 @@
   }
   function setReorder(on) {
     reorderMode = on;
-    reorderPick = null;
+    reorderSel = []; reorderStep = 'pick'; placeSwap = false;
     if (on) selected.clear();
     $('reorderBtn').classList.toggle('on', on);
     $('reorderBtn').textContent = on ? '✓ เสร็จ' : '⇅ จัดเรียงโต๊ะ';
