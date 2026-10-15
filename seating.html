@@ -217,13 +217,18 @@
     @media print {
       body { background: white; }
       #app, .modal-bg, .toast { display: none !important; }
+      @page { size: A4 landscape; margin: 10mm; }
       #printArea { display: block; font-size: 10pt; }
+      #printArea * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+      .print-plan { break-after: page; }
+      .print-plan .plan { margin: 0 auto; }
+      .print-plan .ft-name { color: #444; }
       #printArea h1 { font-family: 'Playfair Display', serif; font-size: 16pt; margin-bottom: 10px; }
-      .print-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+      .print-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
       .print-table { border: 1px solid #999; padding: 6px 8px; break-inside: avoid; }
       .print-table b { display: block; border-bottom: 1px solid #ccc; margin-bottom: 3px; }
       .print-break { page-break-before: always; }
-      .print-list { columns: 3; column-gap: 20px; }
+      .print-list { columns: 4; column-gap: 20px; }
       .print-list div { break-inside: avoid; padding: 1px 0; }
     }
   </style>
@@ -236,6 +241,8 @@
     <div class="header-title">Seating Plan <small id="layoutLabel">90 โต๊ะ × 8 ที่นั่ง</small></div>
     <span class="save-status" id="saveStatus"></span>
     <div class="toolbar">
+      <button class="btn" id="undoBtn" title="ย้อนกลับ (Ctrl+Z)" disabled>↶ ย้อนกลับ</button>
+      <button class="btn" id="redoBtn" title="ทำซ้ำ (Ctrl+Shift+Z)" disabled>↷ ทำซ้ำ</button>
       <button class="btn btn-primary" id="importBtn">＋ นำเข้ารายชื่อ</button>
       <button class="btn" id="addGuestBtn">＋ เพิ่มแขก</button>
       <button class="btn" id="autoBtn">✦ จัดอัตโนมัติ</button>
@@ -374,6 +381,21 @@
       <button class="btn" id="tmMoveAll">ย้ายทั้งโต๊ะ</button>
       <button class="btn btn-danger" id="tmDelete">ลบโต๊ะนี้</button>
       <button class="btn btn-primary" data-close>เสร็จ</button>
+    </div>
+  </div>
+</div>
+
+<!-- PRINT MODAL -->
+<div class="modal-bg" id="printModal">
+  <div class="modal">
+    <h2>พิมพ์</h2>
+    <p class="sub">พิมพ์เป็นกระดาษ A4 แนวนอน — เลือก "บันทึกเป็น PDF" ในหน้าต่างพิมพ์เพื่อเก็บเป็นไฟล์ได้</p>
+    <label class="check"><input type="checkbox" id="prPlan" checked /> ผังห้อง (ตำแหน่งโต๊ะ)</label>
+    <label class="check"><input type="checkbox" id="prTables" checked /> รายชื่อแขกแต่ละโต๊ะ</label>
+    <label class="check"><input type="checkbox" id="prGuests" checked /> รายชื่อแขกเรียงตามชื่อ → เลขโต๊ะ (ไว้ติดหน้างาน)</label>
+    <div class="modal-actions">
+      <button class="btn" data-close>ยกเลิก</button>
+      <button class="btn btn-primary" id="prGo">พิมพ์</button>
     </div>
   </div>
 </div>
@@ -538,7 +560,47 @@
     el.classList.toggle('error', !!isError);
   }
   const timeText = (iso) => new Date(iso).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' });
-  function persist() {
+  // ---------- undo / redo ----------
+  // Every persist() is one user change: remember the plan as it was before it.
+  // History is per device and is cleared when another device's changes arrive.
+  const HISTORY_MAX = 50;
+  let undoStack = [], redoStack = [], lastSnap = null;
+  const snap = () => JSON.stringify({ ...state, updatedAt: undefined });
+  function resetHistory() {
+    undoStack = []; redoStack = []; lastSnap = state ? snap() : null;
+    updateUndoButtons();
+  }
+  function updateUndoButtons() {
+    $('undoBtn').disabled = !undoStack.length;
+    $('redoBtn').disabled = !redoStack.length;
+  }
+  function recordHistory() {
+    const now = snap();
+    if (lastSnap !== null && now !== lastSnap) {
+      undoStack.push(lastSnap);
+      if (undoStack.length > HISTORY_MAX) undoStack.shift();
+      redoStack = [];
+    }
+    lastSnap = now;
+    updateUndoButtons();
+  }
+  function stepHistory(from, to, word) {
+    if (!from.length) return;
+    to.push(snap());
+    const restored = JSON.parse(from.pop());
+    restored.updatedAt = state.updatedAt;
+    state = migrate(restored);
+    lastSnap = snap();
+    updateUndoButtons();
+    persist(false);
+    refreshUI();
+    toast(word);
+  }
+  const undo = () => stepHistory(undoStack, redoStack, 'ย้อนกลับแล้ว');
+  const redo = () => stepHistory(redoStack, undoStack, 'ทำซ้ำแล้ว');
+
+  function persist(track = true) {
+    if (track) recordHistory();
     try { localStorage.setItem(LOCAL_KEY, JSON.stringify(state)); } catch {}
     setStatus('กำลังบันทึก…');
     clearTimeout(saveTimer);
@@ -590,6 +652,7 @@
         const theirs = migrate((await res.json()).seating || defaultState());
         state = base ? mergeStates(base, state, theirs) : state;
         rememberServer(theirs);
+        resetHistory();
         refreshUI();
         saving = false;
         return saveRemote(attempt + 1);
@@ -640,6 +703,7 @@
       if (seating.updatedAt === serverVersion) return;   // version hint was stale; nothing new
       state = migrate(seating);
       rememberServer(state);
+      resetHistory();
       try { localStorage.setItem(LOCAL_KEY, JSON.stringify(state)); } catch {}
       refreshUI();
       setStatus('ซิงค์แล้ว ' + timeText(state.updatedAt));
@@ -667,6 +731,7 @@
     // Prefer the server copy; fall back to a local backup if the server has nothing yet
     state = migrate(remote || local || defaultState());
     if (remote) rememberServer(state);
+    lastSnap = snap();
     if (!remote && local && local.guests?.length) persist();
     return 'ok';
   }
@@ -782,7 +847,7 @@
   try { viewMode = localStorage.getItem('seating_view') || 'plan'; } catch {}
   const layoutOf = () => Object.assign({ perRow: 5, left: null }, state.layout);
 
-  function planTable(t, selPeople, searching) {
+  function planTable(t, selPeople, searching, forPrint) {
     const n = t.id, gs = guestsAt(n), cap = capOf(n), used = gs.reduce((s, g) => s + g.count, 0);
     const colors = [];
     for (const g of gs) for (let k = 0; k < g.count; k++) colors.push(colorOf(g.group));
@@ -801,12 +866,14 @@
     if (t.vip) cls.push('vip');
     if (used === cap) cls.push('full');
     if (used > cap) cls.push('over');
-    if (selected.size) cls.push(used + selPeople <= cap ? 'target' : 'dim');
-    else if (searching) cls.push(tableMatches(n) ? 'hit' : 'dim');
-    if (reorderPick === n) cls.push('picked');
+    if (!forPrint) {
+      if (selected.size) cls.push(used + selPeople <= cap ? 'target' : 'dim');
+      else if (searching) cls.push(tableMatches(n) ? 'hit' : 'dim');
+      if (reorderPick === n) cls.push('picked');
+    }
     const tip = `${labelOf(n)}${nameOf(n) ? ' · ' + nameOf(n) : ''} (${used}/${cap})\n` + gs.map((g) => `${g.name}${g.count > 1 ? ' ×' + g.count : ''}`).join('\n');
     return `
-      <div class="${cls.join(' ')}" data-table="${n}"${reorderMode ? ' data-handle' : ''} title="${esc(tip)}">
+      <div class="${cls.join(' ')}"${forPrint ? '' : ` data-table="${n}"${reorderMode ? ' data-handle' : ''} title="${esc(tip)}"`}>
         <div class="ft-ring">${dots}<div class="ft-circle"><b>${shortLabel(n)}</b><small>${used}/${cap}</small></div></div>
         <div class="ft-name">${esc(label) || '&nbsp;'}</div>
       </div>`;
@@ -818,19 +885,36 @@
     const top = Object.entries(count).sort((a, b) => b[1] - a[1])[0];
     return top ? ` · ส่วนใหญ่ฝ่าย${esc(top[0])}` : '';
   }
-  function renderPlan() {
-    const selPeople = [...selected].map(findGuest).filter(Boolean).reduce((s, g) => s + g.count, 0);
-    const searching = !!($('tableSearch').value.trim() || $('tableFilter').value);
+  // The room itself (stage, VIP row, two sides) — shared by the screen and print
+  function planMarkup(forPrint) {
+    const selPeople = forPrint ? 0 : [...selected].map(findGuest).filter(Boolean).reduce((s, g) => s + g.count, 0);
+    const searching = !forPrint && !!($('tableSearch').value.trim() || $('tableFilter').value);
     const L = layoutOf();
     const vip = state.tableList.filter((t) => t.vip), reg = state.tableList.filter((t) => !t.vip);
     const leftN = Math.min(reg.length, L.left ?? Math.ceil(reg.length / 2));
     const left = reg.slice(0, leftN), right = reg.slice(leftN);
     const cols = Math.max(1, L.perRow);
+    const tbl = (t) => planTable(t, selPeople, searching, forPrint);
     const side = (list, name) => `
       <div class="plan-side">
         <div class="plan-side-label">${name} (${list.length} โต๊ะ)${sideSummary(list)}</div>
-        <div class="plan-side-grid" style="--cols:${Math.min(cols, Math.max(1, list.length))}">${list.map((t) => planTable(t, selPeople, searching)).join('')}</div>
+        <div class="plan-side-grid" style="--cols:${Math.min(cols, Math.max(1, list.length))}">${list.map(tbl).join('')}</div>
       </div>`;
+    return `<div class="plan">
+        <div class="stage">เวที</div>
+        ${vip.length ? `<div class="plan-vip"><div class="plan-vip-label">VIP · แถวหน้าสุด</div>${vip.map(tbl).join('')}</div>` : ''}
+        <div class="plan-sides">
+          ${side(left, 'ฝั่งซ้าย')}
+          <div class="plan-aisle">ทางเดิน</div>
+          ${side(right, 'ฝั่งขวา')}
+        </div>
+      </div>`;
+  }
+  function renderPlan() {
+    const L = layoutOf();
+    const reg = state.tableList.filter((t) => !t.vip);
+    const leftN = Math.min(reg.length, L.left ?? Math.ceil(reg.length / 2));
+    const cols = Math.max(1, L.perRow);
     $('grid').classList.toggle('reorder', reorderMode);
     $('grid').innerHTML = `
       <div class="plan-bar">
@@ -840,15 +924,7 @@
         <button class="btn" data-add-table="regular">＋ โต๊ะทั่วไป</button>
         <span>แตะโต๊ะเพื่อจัดแขก · ใช้ "จัดเรียงโต๊ะ" เพื่อลากสลับตำแหน่ง</span>
       </div>
-      <div class="plan-scroll"><div class="plan">
-        <div class="stage">เวที</div>
-        ${vip.length ? `<div class="plan-vip"><div class="plan-vip-label">VIP · แถวหน้าสุด</div>${vip.map((t) => planTable(t, selPeople, searching)).join('')}</div>` : ''}
-        <div class="plan-sides">
-          ${side(left, 'ฝั่งซ้าย')}
-          <div class="plan-aisle">ทางเดิน</div>
-          ${side(right, 'ฝั่งขวา')}
-        </div>
-      </div></div>`;
+      <div class="plan-scroll">${planMarkup(false)}</div>`;
     fitPlan();
   }
   // Shrink the plan to fit narrow screens (down to 55%); wider still scrolls sideways
@@ -1209,6 +1285,13 @@
     });
   });
   document.addEventListener('keydown', (e) => {
+    // Ctrl/Cmd+Z undo, Ctrl/Cmd+Shift+Z or Ctrl+Y redo — not while typing in a field
+    const typing = /^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement?.tagName);
+    if ((e.ctrlKey || e.metaKey) && !typing && !document.querySelector('.modal-bg.open')) {
+      const k = e.key.toLowerCase();
+      if (k === 'z' && !e.shiftKey) { e.preventDefault(); return undo(); }
+      if ((k === 'z' && e.shiftKey) || k === 'y') { e.preventDefault(); return redo(); }
+    }
     if (e.key !== 'Escape') return;
     if ($('swapModal').classList.contains('open')) return closeSwap(false);
     document.querySelectorAll('.modal-bg.open').forEach((m) => closeModal(m.id));
@@ -1582,18 +1665,40 @@
       .forEach((g) => rows.push([g.table ? shortLabel(g.table) : 'ยังไม่จัด', g.table ? nameOf(g.table) : '', g.name, g.count, g.group, g.side, g.note]));
     download('seating-plan.csv', '﻿' + rows.map((r) => r.map(csvCell).join(',')).join('\n'), 'text/csv;charset=utf-8');
   });
-  $('printBtn').addEventListener('click', () => {
-    let html = '<h1>ผังที่นั่ง</h1><div class="print-grid">';
-    for (const t of state.tableList) {
-      const n = t.id, gs = guestsAt(n);
-      if (!gs.length) continue;
-      html += `<div class="print-table"><b>${labelOf(n)}${nameOf(n) ? ' · ' + esc(nameOf(n)) : ''} (${usedAt(n)}/${capOf(n)})</b>${gs.map((g) => `<div>${esc(g.name)}${g.count > 1 ? ` ×${g.count}` : ''}</div>`).join('')}</div>`;
+  $('printBtn').addEventListener('click', () => openModal('printModal'));
+  $('undoBtn').addEventListener('click', undo);
+  $('redoBtn').addEventListener('click', redo);
+  $('prGo').addEventListener('click', () => {
+    const title = `<h1>ผังที่นั่งงานแต่ง · ${totalPeople()} คน · ${state.tableList.length} โต๊ะ</h1>`;
+    let html = '';
+    if ($('prPlan').checked) html += `<div class="print-plan">${title}<div class="print-plan-box">${planMarkup(true)}</div></div>`;
+    if ($('prTables').checked) {
+      html += `<h1>รายชื่อแขกแต่ละโต๊ะ</h1><div class="print-grid">`;
+      for (const t of state.tableList) {
+        const n = t.id, gs = guestsAt(n);
+        if (!gs.length) continue;
+        html += `<div class="print-table"><b>${labelOf(n)}${nameOf(n) ? ' · ' + esc(nameOf(n)) : ''} (${usedAt(n)}/${capOf(n)})</b>${gs.map((g) => `<div>${esc(g.name)}${g.count > 1 ? ` ×${g.count}` : ''}</div>`).join('')}</div>`;
+      }
+      html += '</div>';
     }
-    html += '</div><h1 class="print-break">รายชื่อแขก → เลขโต๊ะ</h1><div class="print-list">';
-    [...state.guests].sort((a, b) => a.name.localeCompare(b.name, 'th'))
-      .forEach((g) => (html += `<div>${esc(g.name)} — <b>${g.table ? labelOf(g.table) : 'ยังไม่จัด'}</b></div>`));
-    html += '</div>';
-    $('printArea').innerHTML = html;
+    if ($('prGuests').checked) {
+      html += `<h1 class="${$('prTables').checked ? 'print-break' : ''}">รายชื่อแขก → เลขโต๊ะ</h1><div class="print-list">`;
+      [...state.guests].sort((a, b) => a.name.localeCompare(b.name, 'th'))
+        .forEach((g) => (html += `<div>${esc(g.name)} — <b>${g.table ? labelOf(g.table) : 'ยังไม่จัด'}</b></div>`));
+      html += '</div>';
+    }
+    if (!html) return toast('เลือกอย่างน้อย 1 อย่าง');
+    closeModal('printModal');
+    const area = $('printArea');
+    area.innerHTML = html;
+    // Scale the room to one landscape A4 page (~1050 × 690 px printable)
+    const box = area.querySelector('.print-plan-box .plan');
+    if (box) {
+      area.style.cssText = 'display:block;position:absolute;left:-10000px;top:0;width:1050px';
+      const z = Math.min(1, 1040 / box.scrollWidth, 640 / box.scrollHeight);
+      area.style.cssText = '';
+      box.style.zoom = z;
+    }
     window.print();
   });
 
