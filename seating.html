@@ -1317,6 +1317,7 @@
       </div>
       ${roomEditing ? `<div class="plan-bar palette">เพิ่มในห้อง: ${Object.entries(ITEM_TYPES).map(([k, v]) => `<button class="btn" data-add-item="${k}">＋ ${v.label}</button>`).join('')}
         <span>· ลากเพื่อย้าย · แตะเพื่อแก้ชื่อ ขนาด หรือลบ</span></div>`
+        : placing() ? '<div class="plan-bar"><span>แตะโต๊ะที่จะให้โต๊ะที่เลือกไปอยู่ <b>ก่อน</b> โต๊ะนั้น — โต๊ะถัดไปจะเลื่อนตามลำดับที่นั่ง</span><button class="btn" data-slot="regular">วางท้ายสุด</button></div>'
         : '<div class="plan-bar"><span>แตะโต๊ะเพื่อจัดแขก · กดค้างแล้วลากโต๊ะไปวางช่องว่างช่องไหนก็ได้ (วางบนโต๊ะอื่น = สลับที่) · ลากออกไปวางในกล่องด้านล่างเพื่อเอาออกจากห้อง</span></div>'}
       <div class="plan-scroll">${planMarkup(false)}</div>
       <div class="tray" data-tray><div class="tray-title">โต๊ะที่ยังไม่ได้วางในห้อง (${unplaced.length}) — ลากเข้าไปวางในห้อง${unplaced.length ? '' : ' · ลากโต๊ะมาวางที่นี่เพื่อเอาออกจากห้อง'}</div>
@@ -1780,7 +1781,49 @@
   }
   // Move tables (kept in their current order) in front of `beforeId`, or to the end
   // of the VIP / regular section. Moved tables take on the section they land in.
+  // Free room: insertion moves tables for real. Placed tables are read front to back,
+  // left to right; the chosen tables are put in front of the target in that order and
+  // everything after shifts along the same set of cells (plus free cells for any
+  // tables coming from the tray). Numbers then follow the new positions.
+  function insertInRoom(ids, beforeId, toVip) {
+    const R = roomOf(), key = (p) => p.y * 1000 + p.x;
+    const placed = state.tableList.filter((t) => inRoom(t.pos, R)).sort((a, b) => key(a.pos) - key(b.pos));
+    const moving = [...placed.filter((t) => ids.includes(t.id)), ...state.tableList.filter((t) => ids.includes(t.id) && !inRoom(t.pos, R))];
+    if (!moving.length) return false;
+    const cells = placed.map((t) => ({ ...t.pos }));
+    let need = moving.filter((t) => !inRoom(t.pos, R)).length, rows = R.rows;
+    for (let y = 0; need > 0; y++) {
+      if (y >= rows) rows++;
+      for (let x = 0; x < R.cols && need > 0; x++) {
+        if (cells.some((c) => c.x === x && c.y === y) || itemAtCell(x, y)) continue;
+        cells.push({ x, y }); need--;
+      }
+    }
+    cells.sort((a, b) => key(a) - key(b));
+    const seq = placed.filter((t) => !ids.includes(t.id));
+    let idx, vip;
+    if (beforeId) {
+      idx = seq.findIndex((t) => t.id === beforeId);
+      if (idx < 0) { idx = seq.length; vip = false; } else vip = seq[idx].vip;
+    } else {
+      vip = !!toVip;
+      idx = vip ? seq.reduce((last, t, i) => (t.vip ? i + 1 : last), 0) : seq.length;
+    }
+    moving.forEach((t) => (t.vip = vip));
+    seq.splice(idx, 0, ...moving);
+    seq.forEach((t, i) => (t.pos = cells[i]));
+    if (rows !== R.rows) state.room = { ...R, rows };
+    renumberByPosition();
+    return moving;
+  }
   function moveTables(ids, beforeId, toVip) {
+    if (isFree()) {
+      const moved = insertInRoom(ids, beforeId, toVip);
+      if (!moved) return;
+      persist();
+      const labels = moved.map((t) => shortLabel(t.id));
+      return toast(`แทรก ${moved.length} โต๊ะแล้ว — ตอนนี้เป็น ${labels.length > 1 ? labels[0] + '–' + labels[labels.length - 1] : labels[0]} · โต๊ะถัดไปเลื่อนตามลำดับ`, 3500);
+    }
     const moving = state.tableList.filter((t) => ids.includes(t.id));
     const rest = state.tableList.filter((t) => !ids.includes(t.id));
     if (!moving.length) return;
