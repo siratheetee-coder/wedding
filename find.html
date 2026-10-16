@@ -134,6 +134,23 @@
     .mates .chips { display: flex; flex-wrap: wrap; justify-content: center; gap: 6px; }
     .mates .chips span { font-size: 0.78rem; border: 1px solid var(--border-soft); background: var(--cream); border-radius: 999px; padding: 4px 12px; }
 
+    /* Check-in */
+    .checkin { margin-top: 18px; text-align: center; }
+    .ci-btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; width: 100%; max-width: 320px; padding: 15px 20px; border-radius: 999px; border: none;
+      background: linear-gradient(180deg, #957660, var(--accent-dark)); color: #fff; font: 500 1.05rem 'Sarabun', sans-serif; letter-spacing: 0.02em; cursor: pointer;
+      box-shadow: 0 6px 18px rgba(107, 81, 68, 0.28); transition: transform 0.15s, box-shadow 0.15s; }
+    .ci-btn:active { transform: scale(0.98); }
+    .ci-btn:disabled { opacity: 0.6; }
+    .ci-note { font-size: 0.75rem; color: var(--text-muted); margin-top: 8px; }
+    .ci-done { display: inline-flex; flex-direction: column; align-items: center; gap: 2px; padding: 12px 26px; border-radius: 16px; background: #eef4ea; border: 1px solid #cfe0c6; color: #4f7343; }
+    .ci-done b { font-size: 1.05rem; font-weight: 600; }
+    .ci-done small { font-size: 0.75rem; color: #6a8f5c; }
+    .linkish { background: none; border: none; font: inherit; font-size: 0.78rem; color: var(--text-muted); text-decoration: underline; cursor: pointer; margin-top: 8px; padding: 4px; }
+    .badge .ok { position: absolute; right: -2px; bottom: -2px; width: 22px; height: 22px; border-radius: 50%; background: #6a8f5c; color: #fff; font-size: 0.7rem; display: flex; align-items: center; justify-content: center; border: 2px solid #fff; }
+    .badge { position: relative; }
+    .welcome { text-align: center; font-family: 'Playfair Display', serif; font-style: italic; color: var(--accent); font-size: 1.05rem; margin-top: 6px; }
+    .welcome + .linkish { display: block; margin: 0 auto; }
+
     footer { text-align: center; margin-top: 36px; color: var(--text-muted); font-size: 0.78rem; line-height: 1.8; }
     footer .sig { font-family: 'Playfair Display', serif; font-style: italic; color: var(--accent); font-size: 0.95rem; }
 
@@ -174,7 +191,12 @@
 (() => {
   const $ = (id) => document.getElementById(id);
   const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-  let plan = null, picked = null;
+  let plan = null, picked = null, checkins = {};
+  // The guest this phone belongs to, remembered after they check in or tap "this is me"
+  const ME_KEY = 'wedding_find_me';
+  const getMe = () => { try { return localStorage.getItem(ME_KEY); } catch { return null; } };
+  const setMe = (id) => { try { id ? localStorage.setItem(ME_KEY, id) : localStorage.removeItem(ME_KEY); } catch {} };
+  const hhmm = (iso) => new Date(iso).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' });
 
   const IDLE = `<span class="orn">✧ ✧ ✧</span>ยินดีต้อนรับสู่งานของเรา<br>เริ่มพิมพ์ชื่อด้านบนเพื่อดูโต๊ะของคุณ
     <div class="hint-chips"><span>ชื่อเล่น</span><span>ชื่อ-นามสกุล</span><span>ชื่อหน่วยงาน</span></div>`;
@@ -195,15 +217,20 @@
 
   async function load() {
     try {
-      const res = await fetch('/api/seating', { cache: 'no-store' });
-      const { seating } = await res.json();
+      const [sRes, cRes] = await Promise.all([
+        fetch('/api/seating', { cache: 'no-store' }),
+        fetch('/api/checkin', { cache: 'no-store' }).catch(() => null),
+      ]);
+      const { seating } = await sRes.json();
       if (!seating) throw new Error('empty');
+      try { checkins = (await cRes.json()).checkins || {}; } catch {}
       const keep = picked && (picked.id || picked.name);
       plan = prepare(seating);
       search();
       // Keep the guest's result open across background refreshes
       const again = keep && plan.guests.find((g) => (g.id || g.name) === keep);
       if (again) show(again, false);
+      else if (!$('q').value.trim()) showMe();
     } catch {
       if (!plan) $('status').innerHTML = '<span class="orn">✧</span>ยังโหลดผังที่นั่งไม่ได้<br>กรุณาลองใหม่อีกครั้ง หรือติดต่อโต๊ะลงทะเบียน';
     }
@@ -235,7 +262,7 @@
     $('results').innerHTML = hits.map((g, i) => {
       const l = g.table != null && plan.label[g.table];
       const badge = l
-        ? `<div class="badge${l.vip ? ' vip' : ''}"><small>${l.vip ? 'TABLE' : 'โต๊ะที่'}</small><b>${esc(l.short)}</b></div>`
+        ? `<div class="badge${l.vip ? ' vip' : ''}"><small>${l.vip ? 'TABLE' : 'โต๊ะที่'}</small><b>${esc(l.short)}</b>${checkins[g.id] ? '<span class="ok">✓</span>' : ''}</div>`
         : '<div class="badge none"><span>ติดต่อ<br>หน้างาน</span></div>';
       return `<button class="res" data-i="${i}" style="animation-delay:${Math.min(i, 8) * 30}ms">
         <div class="who"><div class="name">${esc(g.name)}</div><div class="meta">${esc(g.group || '')}${g.count > 1 ? ` · ${g.count} ท่าน` : ''}</div></div>
@@ -275,6 +302,7 @@
         <div class="who-line">${esc(g.name)}${g.count > 1 ? ` · ${g.count} ท่าน` : ''}</div>
         <div class="where">${side} · หันหน้าเข้าเวที</div>
         ${l.name ? `<div class="tname"><span>${esc(l.name)}</span></div>` : ''}
+        <div class="checkin" id="ci">${checkinBlock(g)}</div>
         <div class="room">
           <div class="room-title">ตำแหน่งในห้องจัดเลี้ยง</div>
           <div class="stage">เวที</div>
@@ -289,6 +317,41 @@
         ${mates.length ? `<div class="mates"><h3>นั่งร่วมโต๊ะกับ</h3><div class="chips">${mates.slice(0, 10).map((m) => `<span>${esc(m)}</span>`).join('')}${mates.length > 10 ? `<span>+${mates.length - 10}</span>` : ''}</div></div>` : ''}
       </div>`;
     if (scroll) $('detail').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
+  function checkinBlock(g) {
+    const at = checkins[g.id];
+    if (at) {
+      return `<div class="ci-done"><b>✓ เช็กอินแล้ว</b><small>เวลา ${hhmm(at)} น.</small></div><br>
+        <button class="linkish" data-ci="undo">ยกเลิกเช็กอิน</button>`;
+    }
+    return `<button class="ci-btn" data-ci="in">✓ ฉันได้ที่นั่งแล้ว</button>
+      <div class="ci-note">กดเมื่อถึงงานและนั่งที่โต๊ะแล้ว${getMe() === g.id ? '' : ' · ระบบจะจำชื่อคุณไว้ในเครื่องนี้'}</div>`;
+  }
+  $('detail').addEventListener('click', async (e) => {
+    const b = e.target.closest('[data-ci]');
+    if (!b || !picked) return;
+    if (b.dataset.ci === 'forget') { setMe(null); $('q').value = ''; search(); $('q').focus(); return; }
+    const g = picked, undo = b.dataset.ci === 'undo';
+    b.disabled = true;
+    try {
+      const res = await fetch('/api/checkin', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: g.id, undo }) });
+      if (!res.ok) throw new Error();
+      const { at } = await res.json();
+      if (at) { checkins[g.id] = at; setMe(g.id); } else delete checkins[g.id];
+      $('ci').innerHTML = checkinBlock(g);
+    } catch {
+      b.disabled = false;
+      $('ci').insertAdjacentHTML('beforeend', '<div class="ci-note">บันทึกไม่สำเร็จ กรุณาลองอีกครั้ง</div>');
+    }
+  });
+  // Returning on the same phone: go straight to "your" table
+  function showMe() {
+    const me = getMe(), g = me && plan.guests.find((x) => x.id === me);
+    if (!g) return;
+    $('status').innerHTML = `<div class="welcome">ยินดีต้อนรับกลับ ✧</div>`;
+    show(g, false);
+    $('detail').insertAdjacentHTML('beforeend', '<div style="text-align:center"><button class="linkish" data-ci="forget">ไม่ใช่คุณ? ค้นหาชื่ออื่น</button></div>');
   }
 
   let timer;

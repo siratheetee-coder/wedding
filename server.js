@@ -12,6 +12,7 @@ const ADMIN_SECRET = process.env.ADMIN_SECRET || 'wedding2025';
 const DATA_FILE = path.join(__dirname, 'data', 'registrations.json');
 const LIKES_FILE = path.join(__dirname, 'data', 'likes.json');
 const SEATING_FILE = path.join(__dirname, 'data', 'seating.json');
+const CHECKINS_FILE = path.join(__dirname, 'data', 'checkins.json');
 const UPLOADS_DIR = path.join(__dirname, 'uploads');
 const GUEST_UPLOADS_DIR = path.join(__dirname, 'uploads', 'guest');
 
@@ -255,6 +256,32 @@ app.put('/api/seating', (req, res) => {
   seating.updatedAt = new Date().toISOString();
   fs.writeFileSync(SEATING_FILE, JSON.stringify(seating, null, 2), 'utf8');
   res.json({ success: true, updatedAt: seating.updatedAt });
+});
+
+// Guest check-ins on the day: { guestId: ISO time } (see api/checkin.js)
+function readCheckins() {
+  try {
+    return JSON.parse(fs.readFileSync(CHECKINS_FILE, 'utf8'));
+  } catch {
+    return {};
+  }
+}
+
+app.get('/api/checkin', (req, res) => {
+  res.set('Cache-Control', 'no-store');
+  res.json({ checkins: readCheckins() });
+});
+
+app.post('/api/checkin', (req, res) => {
+  const { id, undo } = req.body || {};
+  if (!id || typeof id !== 'string' || !readSeating()?.guests?.some((g) => g.id === id)) {
+    return res.status(400).json({ error: 'unknown guest' });
+  }
+  const checkins = readCheckins();
+  if (undo) delete checkins[id];
+  else checkins[id] = new Date().toISOString();
+  fs.writeFileSync(CHECKINS_FILE, JSON.stringify(checkins, null, 2), 'utf8');
+  res.json({ success: true, at: checkins[id] || null });
 });
 
 app.listen(PORT, () => {

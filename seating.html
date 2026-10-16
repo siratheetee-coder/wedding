@@ -137,6 +137,10 @@
     .hint label { display: inline-flex; align-items: center; gap: 4px; margin-left: 6px; }
     .drag-ghost { position: fixed; z-index: 70; pointer-events: none; opacity: 0.9; box-shadow: 0 8px 24px rgba(0,0,0,0.18); transform: rotate(1.5deg); }
     .btn.on { background: var(--accent); border-color: var(--accent); color: white; }
+    .stat.arrived .stat-value { color: var(--ok); }
+    .in-badge { font-size: 0.7rem; color: var(--ok); font-weight: 600; white-space: nowrap; }
+    .tc-in { font-size: 0.7rem; color: var(--ok); font-weight: 600; }
+    .ft-dot.in { box-shadow: 0 0 0 2px #fff, 0 0 0 3.5px var(--ok); }
 
     /* Floor plan view */
     .seg.view { display: inline-flex; }
@@ -331,6 +335,7 @@
     <div class="stat"><div class="stat-value" id="sSeated">0</div><div class="stat-label">จัดที่นั่งแล้ว</div></div>
     <div class="stat"><div class="stat-value" id="sUnseated">0</div><div class="stat-label">ยังไม่ได้จัด</div></div>
     <div class="stat"><div class="stat-value" id="sTables">0</div><div class="stat-label">โต๊ะที่ใช้</div></div>
+    <div class="stat arrived"><div class="stat-value" id="sArrived">0</div><div class="stat-label">มาถึงแล้ว (คน)</div></div>
     <div class="progress">
       <div class="progress-bar"><div class="progress-fill" id="pFill" style="width:0"></div></div>
       <div class="progress-text" id="pText"></div>
@@ -349,6 +354,7 @@
           <button data-f="unseated" class="active">ยังไม่จัด</button>
           <button data-f="seated">จัดแล้ว</button>
           <button data-f="all">ทั้งหมด</button>
+          <button data-f="arrived">มาแล้ว</button>
         </div>
         <input class="field" id="guestSearch" placeholder="ค้นหาชื่อแขก…" />
         <div class="row">
@@ -421,6 +427,7 @@
     <select class="field" id="gTable"></select>
     <label>หมายเหตุ</label>
     <input class="field" id="gNote" />
+    <label class="check" id="gArrivedRow"><input type="checkbox" id="gArrived" /> มาถึงงานแล้ว (เช็กอิน) <span class="hint" id="gArrivedAt"></span></label>
     <div class="modal-actions">
       <button class="btn btn-danger left" id="gDelete">ลบแขก</button>
       <button class="btn" id="gSplit">แบ่งกลุ่ม</button>
@@ -800,6 +807,42 @@
     }
   }
   setInterval(poll, POLL_MS);
+
+  // ---------- check-ins (guests mark themselves seated on find.html) ----------
+  // Kept outside the plan: not synced through saves and not part of undo.
+  let checkins = {};
+  const arrivedAt = (tableId) => guestsAt(tableId).filter((g) => checkins[g.id]).reduce((s, g) => s + g.count, 0);
+  async function loadCheckins() {
+    if (document.hidden) return;
+    try {
+      const next = (await (await fetch('/api/checkin', { cache: 'no-store' })).json()).checkins || {};
+      if (canon(next) === canon(checkins)) return;
+      checkins = next;
+      if (state) { render(); if (openTable) renderTableModal(); }
+    } catch {}
+  }
+  setInterval(loadCheckins, 30000);
+  document.addEventListener('visibilitychange', loadCheckins);
+  $('gArrived').addEventListener('change', async (e) => {
+    const g = editingGuest;
+    if (!g) return;
+    try {
+      const res = await fetch('/api/checkin', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: g.id, undo: !e.target.checked }),
+      });
+      if (!res.ok) throw new Error();
+      const { at } = await res.json();
+      if (at) checkins[g.id] = at; else delete checkins[g.id];
+      $('gArrivedAt').textContent = at ? 'เวลา ' + timeText(at) : '';
+      render();
+      if (openTable) renderTableModal();
+      toast(at ? `เช็กอิน ${g.name} แล้ว` : `ยกเลิกเช็กอิน ${g.name} แล้ว`);
+    } catch {
+      e.target.checked = !e.target.checked;
+      toast('บันทึกเช็กอินไม่สำเร็จ — ถ้าเพิ่งเพิ่มแขกคนนี้ รอให้บันทึกผังเสร็จก่อน');
+    }
+  });
   document.addEventListener('visibilitychange', () => { if (!document.hidden) poll(); });
 
   async function loadState() {
@@ -825,6 +868,7 @@
   loadState().then((r) => {
     if (r === 'network') setStatus('เชื่อมต่อเซิร์ฟเวอร์ไม่ได้ — ใช้ข้อมูลสำรองในเครื่อง', true);
     if (!state) state = migrate(defaultState());
+    loadCheckins();
     if (state.updatedAt) setStatus('อัปเดตล่าสุด ' + new Date(state.updatedAt).toLocaleString('th-TH', { dateStyle: 'short', timeStyle: 'short' }));
     render();
   });
@@ -926,6 +970,7 @@
     $('sSeated').textContent = seated;
     $('sUnseated').textContent = total - seated;
     $('sTables').textContent = `${used}/${state.tableList.length}`;
+    $('sArrived').textContent = state.guests.filter((g) => checkins[g.id]).reduce((s, g) => s + g.count, 0);
     $('pFill').style.width = seats ? Math.min(100, (seated / seats) * 100) + '%' : 0;
     const free = seats - seated;
     $('pText').textContent = `ใช้ไป ${seated} จาก ${seats} ที่นั่ง · ว่าง ${free} ที่` + (total > seats ? ` · ⚠ แขกเกินที่นั่ง ${total - seats} คน` : '');
@@ -952,6 +997,7 @@
     return state.guests.filter((g) => {
       if (listFilter === 'unseated' && g.table) return false;
       if (listFilter === 'seated' && !g.table) return false;
+      if (listFilter === 'arrived' && !checkins[g.id]) return false;
       if (gf && g.group !== gf) return false;
       if (sf && g.side !== sf) return false;
       if (q && !(`${g.name} ${g.group} ${g.note}`.toLowerCase().includes(q))) return false;
@@ -972,7 +1018,7 @@
           <span class="guest-dot" style="background:${colorOf(g.group)}"></span>
           <div class="guest-info">
             <div class="guest-name">${esc(g.name)}</div>
-            <div class="guest-meta">${esc([g.side, g.group, g.note].filter(Boolean).join(' · ') || '—')}</div>
+            <div class="guest-meta">${checkins[g.id] ? '<span class="in-badge">✓ มาแล้ว</span> · ' : ''}${esc([g.side, g.group, g.note].filter(Boolean).join(' · ') || '—')}</div>
           </div>
           ${g.table ? `<span class="guest-table">${labelOf(g.table)}</span>` : ''}
           <span class="guest-count">${g.count}</span>
@@ -1014,13 +1060,13 @@
 
   function planTable(t, selPeople, searching, forPrint) {
     const n = t.id, gs = guestsAt(n), cap = capOf(n), used = gs.reduce((s, g) => s + g.count, 0);
-    const colors = [];
-    for (const g of gs) for (let k = 0; k < g.count; k++) colors.push(colorOf(g.group));
+    const colors = [], here = [];
+    for (const g of gs) for (let k = 0; k < g.count; k++) { colors.push(colorOf(g.group)); here.push(!forPrint && !!checkins[g.id]); }
     const total = Math.max(cap, used);
     const dots = Array.from({ length: total }, (_, k) => {
       const a = (k / total) * 360 - 90;
       const bg = colors[k] ? `background:${colors[k]};border-color:${colors[k]};` : '';
-      return `<span class="ft-dot${k >= cap ? ' over' : ''}" style="${bg}transform:rotate(${a}deg) translate(34px) rotate(${-a}deg)"></span>`;
+      return `<span class="ft-dot${k >= cap ? ' over' : ''}${here[k] ? ' in' : ''}" style="${bg}transform:rotate(${a}deg) translate(34px) rotate(${-a}deg)"></span>`;
     }).join('');
     // Label under the table: its own name, else the group most of its guests belong to
     const byGroup = {};
@@ -1146,6 +1192,7 @@
             <span class="tc-handle" data-handle title="ลากเพื่อสลับตำแหน่งโต๊ะ">⠿</span>
             <span class="tc-no">${shortLabel(n)}</span>
             <span class="tc-name">${esc(nameOf(n))}</span>
+            ${arrivedAt(n) ? `<span class="tc-in" title="มาถึงแล้ว">✓${arrivedAt(n)}</span>` : ''}
             <span class="tc-cap ${used > cap ? 'over' : used === cap ? 'full' : ''}">${used}/${cap}</span>
             ${gs.length ? `<button class="tc-clear" data-clear="${n}" title="ล้างโต๊ะนี้">✕</button>` : ''}
           </div>
@@ -1718,6 +1765,9 @@
     $('gSide').value = g?.side || '';
     $('gGroup').value = g?.group || '';
     $('gNote').value = g?.note || '';
+    $('gArrivedRow').style.display = g ? '' : 'none';
+    $('gArrived').checked = !!(g && checkins[g.id]);
+    $('gArrivedAt').textContent = g && checkins[g.id] ? 'เวลา ' + timeText(checkins[g.id]) : '';
     tableOptions($('gTable'), g?.table || null);
     $('gDelete').style.display = g ? '' : 'none';
     $('gSplit').style.display = g && g.count > 1 ? '' : 'none';
@@ -1780,7 +1830,7 @@
     $('tmMembers').innerHTML = gs.length ? gs.map((g) => `
       <div class="member">
         <span class="guest-dot" style="background:${colorOf(g.group)}"></span>
-        <div class="guest-info"><div class="guest-name">${esc(g.name)}</div><div class="guest-meta">${esc([g.side, g.group, g.note].filter(Boolean).join(' · ') || '—')}</div></div>
+        <div class="guest-info"><div class="guest-name">${esc(g.name)}</div><div class="guest-meta">${checkins[g.id] ? '<span class="in-badge">✓ มาแล้ว</span> · ' : ''}${esc([g.side, g.group, g.note].filter(Boolean).join(' · ') || '—')}</div></div>
         <span class="guest-count">${g.count}</span>
         ${g.count > 1 ? `<button class="btn" data-split="${g.id}">แบ่ง</button>` : ''}
         <button class="btn" data-move="${g.id}">ย้าย</button>
