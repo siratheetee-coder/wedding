@@ -77,6 +77,8 @@
     .guest-table { font-size: 0.72rem; color: var(--accent); flex-shrink: 0; }
     .guest-edit { border: none; background: none; cursor: pointer; color: var(--text-muted); font-size: 0.85rem; padding: 2px 4px; }
     .guest-edit:hover { color: var(--accent); }
+    .sel-actions { display: flex; gap: 6px; margin-top: 6px; }
+    .sel-actions .btn { flex: 1; padding: 6px 8px; font-size: 0.78rem; }
     .sidebar-foot { padding: 10px 12px; border-top: 1px solid var(--border); font-size: 0.75rem; color: var(--text-muted); }
     .empty { text-align: center; color: var(--text-muted); font-size: 0.85rem; padding: 32px 12px; line-height: 1.7; }
 
@@ -103,6 +105,15 @@
     .section-label .btn { padding: 4px 10px; font-size: 0.75rem; }
     .modal label.swap-item { display: flex; margin: 0; align-items: center; gap: 8px; padding: 8px 0; border-bottom: 1px solid var(--beige); cursor: pointer; }
     .swap-item input { width: 18px; height: 18px; flex-shrink: 0; }
+    .dl-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; margin-top: 16px; }
+    .dl { display: grid; grid-template-columns: 38px 1fr; grid-template-rows: auto auto; column-gap: 10px; align-items: center; text-align: left; padding: 10px 12px; border: 1px solid var(--border); border-radius: 6px; background: white; cursor: pointer; font: inherit; color: inherit; }
+    .dl:hover { border-color: var(--accent); background: var(--cream); }
+    .dl:disabled { opacity: 0.6; cursor: wait; }
+    .dl b { grid-row: span 2; width: 38px; height: 38px; border-radius: 6px; display: flex; align-items: center; justify-content: center; color: white; font-size: 1.1rem; background: var(--accent); }
+    #dlWord b { background: #2b579a; } #dlExcel b { background: #217346; }
+    .dl span { font-size: 0.9rem; font-weight: 600; }
+    .dl small { font-size: 0.7rem; color: var(--text-muted); line-height: 1.35; }
+    @media (max-width: 520px) { .dl-grid { grid-template-columns: 1fr; } }
     .ck-sec { margin-top: 14px; }
     .ck-sec h3 { font-size: 0.9rem; font-weight: 600; display: flex; align-items: center; gap: 8px; margin-bottom: 4px; }
     .ck-sec h3 .n { background: var(--danger); color: white; border-radius: 10px; padding: 0 8px; font-size: 0.75rem; }
@@ -332,8 +343,7 @@
       <button class="btn btn-primary" id="importBtn">＋ นำเข้ารายชื่อ</button>
       <button class="btn" id="addGuestBtn">＋ เพิ่มแขก</button>
       <button class="btn" id="autoBtn">✦ จัดอัตโนมัติ</button>
-      <button class="btn" id="exportBtn">↓ CSV</button>
-      <button class="btn" id="printBtn">พิมพ์</button>
+      <button class="btn" id="printBtn">⬇ ดาวน์โหลด / พิมพ์</button>
       <button class="btn btn-danger" id="clearAllBtn">ล้างทุกโต๊ะ</button>
       <button class="btn" id="checkBtn">⚠ ตรวจผัง</button>
       <a class="btn" href="/find.html" target="_blank" rel="noopener" style="text-decoration:none">หน้าค้นหาโต๊ะ ↗</a>
@@ -491,16 +501,22 @@
 <!-- PRINT MODAL -->
 <div class="modal-bg" id="printModal">
   <div class="modal">
-    <h2>พิมพ์</h2>
-    <p class="sub">พิมพ์เป็นกระดาษ A4 แนวนอน — เลือก "บันทึกเป็น PDF" ในหน้าต่างพิมพ์เพื่อเก็บเป็นไฟล์ได้</p>
+    <h2>ดาวน์โหลด / พิมพ์</h2>
+    <p class="sub">เลือกสิ่งที่ต้องการ แล้วกดรูปแบบไฟล์ด้านล่าง</p>
     <label class="check"><input type="checkbox" id="prPlan" checked /> ผังห้อง (ตำแหน่งโต๊ะ)</label>
     <label class="check"><input type="checkbox" id="prTables" checked /> รายชื่อแขกแต่ละโต๊ะ</label>
     <label class="check"><input type="checkbox" id="prGuests" checked /> รายชื่อแขกเรียงตามชื่อ → เลขโต๊ะ (ไว้ติดหน้างาน)</label>
     <label class="check"><input type="checkbox" id="prQr" /> ป้าย QR "ค้นหาโต๊ะของคุณ" สำหรับแขก (ติดหน้างาน)</label>
     <p class="hint" style="margin-top:8px">แท็บเล็ตตั้งหน้างานให้แขกใช้ร่วมกัน: เปิด <a href="/find.html?kiosk" target="_blank" rel="noopener">หน้าค้นหาโต๊ะแบบโหมดหน้างาน ↗</a> (ไม่จำชื่อ และล้างหน้าจอเอง)</p>
+    <div class="dl-grid">
+      <button class="dl" id="dlWord"><b>W</b><span>Word (.docx)</span><small>รายชื่อแต่ละโต๊ะ + ค้นหาโต๊ะจากชื่อ แก้ไขต่อได้</small></button>
+      <button class="dl" id="dlExcel"><b>X</b><span>Excel (.xlsx)</span><small>4 แผ่นงาน: ตามโต๊ะ · สรุปโต๊ะ · ค้นหาจากชื่อ · สรุปกลุ่ม</small></button>
+      <button class="dl" id="prGo"><b>⎙</b><span>พิมพ์ / PDF</span><small>ทุกอย่างที่ติ๊ก รวมผังห้องและป้าย QR (A4 แนวนอน)</small></button>
+      <button class="dl" id="exportBtn"><b>,</b><span>CSV</span><small>ข้อมูลดิบ เปิดได้ทุกโปรแกรม</small></button>
+    </div>
+    <p class="hint" style="margin-top:6px">ผังห้องและป้าย QR มีเฉพาะแบบพิมพ์ / PDF — ในหน้าต่างพิมพ์เลือก "บันทึกเป็น PDF" เพื่อเก็บเป็นไฟล์</p>
     <div class="modal-actions">
-      <button class="btn" data-close>ยกเลิก</button>
-      <button class="btn btn-primary" id="prGo">พิมพ์</button>
+      <button class="btn" data-close>ปิด</button>
     </div>
   </div>
 </div>
@@ -1041,7 +1057,8 @@
     }
     const selPeople = [...selected].map(findGuest).filter(Boolean).reduce((s, g) => s + g.count, 0);
     $('selFoot').innerHTML = selected.size
-      ? `เลือก ${selected.size} รายการ (${selPeople} คน) — แตะโต๊ะเพื่อจัดลง · <a href="#" id="selAllShown">เลือกทั้งหมดที่แสดง</a> · <a href="#" id="clearSel">ยกเลิก</a>`
+      ? `<div>เลือก ${selected.size} รายการ (${selPeople} คน) — แตะโต๊ะเพื่อจัดลง · <a href="#" id="selAllShown">เลือกทั้งหมดที่แสดง</a> · <a href="#" id="clearSel">ยกเลิก</a></div>
+         <div class="sel-actions"><button class="btn" id="selUnseat">เอาออกจากโต๊ะ</button><button class="btn btn-danger" id="selDelete">🗑 ลบที่เลือก (${selected.size})</button></div>`
       : 'ลากชื่อไปวางบนโต๊ะ หรือแตะเลือกชื่อแล้วแตะโต๊ะ · กด Shift ค้างเพื่อเลือกเป็นช่วง';
     const from = [...new Set([...selected].map(findGuest).filter((g) => g && g.table).map((g) => g.table))];
     $('tableHint').innerHTML = reorderMode
@@ -1354,6 +1371,26 @@
   let lastGuestClick = null;
   $('selFoot').addEventListener('click', (e) => {
     if (e.target.id === 'clearSel') { e.preventDefault(); selected.clear(); renderGuestList(); renderGrid(); }
+    // Bulk actions on the selected guests — each is one undo step
+    if (e.target.id === 'selDelete' || e.target.id === 'selUnseat') {
+      const gs = [...selected].map(findGuest).filter(Boolean);
+      const people = gs.reduce((n, g) => n + g.count, 0);
+      if (e.target.id === 'selDelete') {
+        if (!confirm(`ลบแขก ${gs.length} รายการ (${people} คน) ออกจากรายชื่อ?\n(กด "ย้อนกลับ" ได้ถ้าลบผิด)`)) return;
+        const ids = new Set(gs.map((g) => g.id));
+        state.guests = state.guests.filter((g) => !ids.has(g.id));
+        toast(`ลบ ${gs.length} รายการแล้ว`);
+      } else {
+        const seated = gs.filter((g) => g.table);
+        if (!seated.length) return toast('แขกที่เลือกยังไม่ได้จัดโต๊ะ');
+        seated.forEach((g) => (g.table = null));
+        toast(`เอา ${seated.length} รายการออกจากโต๊ะแล้ว`);
+      }
+      selected.clear();
+      persist(); render();
+      if (openTable) renderTableModal();
+      return;
+    }
     if (e.target.id === 'selAllShown') {
       e.preventDefault();
       filteredGuests().forEach((g) => selected.add(g.id));
@@ -2152,16 +2189,19 @@
   $('undoBtn').addEventListener('click', undo);
   $('redoBtn').addEventListener('click', redo);
   const FIND_URL = () => location.origin + '/find.html';
-  let qrLib = null;
-  function loadQr() {
-    return (qrLib ||= new Promise((res, rej) => {
+  // Libraries are served from assets/vendor (no CDN needed on the day) and only
+  // loaded when someone downloads or prints.
+  const libs = {};
+  function loadLib(src, globalName) {
+    return (libs[src] ||= new Promise((res, rej) => {
       const sc = document.createElement('script');
-      sc.src = 'https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js';
-      sc.onload = () => res(window.qrcode);
-      sc.onerror = () => { qrLib = null; rej(new Error('qr')); };
+      sc.src = src;
+      sc.onload = () => res(window[globalName]);
+      sc.onerror = () => { delete libs[src]; rej(new Error(src)); };
       document.head.appendChild(sc);
     }));
   }
+  const loadQr = () => loadLib('assets/vendor/qrcode.js', 'qrcode');
   $('prGo').addEventListener('click', async () => {
     let qrHtml = '';
     if ($('prQr').checked) {
@@ -2176,7 +2216,7 @@
             <div class="qr-how">สแกน QR ด้วยกล้องมือถือ<br>แล้วพิมพ์ชื่อของคุณ</div></div>
           <div class="qr-box"><div class="qr">${qr.createSvgTag({ cellSize: 8, margin: 1, scalable: true })}</div><div class="url">${esc(FIND_URL().replace(/^https?:\/\//, ''))}</div></div>
         </div></div>`;
-      } catch { return toast('โหลดตัวสร้าง QR ไม่ได้ — ตรวจการเชื่อมต่ออินเทอร์เน็ต'); }
+      } catch { return toast('โหลดตัวสร้าง QR ไม่ได้ — ลองใหม่อีกครั้ง'); }
     }
     const people = totalPeople(), seated = state.guests.filter((g) => g.table).reduce((t, g) => t + g.count, 0);
     const head = (th, en, meta) => `<div class="ph"><img src="assets/logo-sm.png" alt="" /><div><div class="ph-names">Madchimapon &amp; Sirathee</div><div class="ph-sub">20 December 2026 · Taksila Hotel</div></div><div class="ph-right"><div class="ph-title">${th}<small>${en}</small></div>${meta ? `<div class="ph-meta">${meta}</div>` : ''}</div></div>`;
@@ -2223,6 +2263,206 @@
     }
     window.print();
   });
+
+  // ---------- Excel / Word downloads ----------
+  const EVENT_LINE = '20 December 2026 · Taksila Hotel';
+  const stamp = () => new Date().toLocaleString('th-TH', { dateStyle: 'medium', timeStyle: 'short' });
+  const fileDate = () => new Date().toISOString().slice(0, 10);
+  function sideOfTable(id) {
+    const t = tableById(id);
+    if (!t) return '';
+    if (t.vip) return 'VIP';
+    const i = state.tableList.filter((x) => !x.vip).indexOf(t);
+    return i < leftCount() ? 'ซ้าย' : 'ขวา';
+  }
+  const mainGroup = (id) => {
+    const by = {};
+    guestsAt(id).forEach((g) => (by[g.group || '—'] = (by[g.group || '—'] || 0) + g.count));
+    return Object.entries(by).sort((a, b) => b[1] - a[1])[0]?.[0] || '';
+  };
+  async function withBusy(btn, fn) {
+    btn.disabled = true;
+    try { await fn(); } catch (err) { console.error(err); toast('สร้างไฟล์ไม่สำเร็จ — ลองใหม่อีกครั้ง'); }
+    finally { btn.disabled = false; }
+  }
+
+  async function buildExcel() {
+    const ExcelJS = await loadLib('assets/vendor/exceljs.min.js', 'ExcelJS');
+    const wb = new ExcelJS.Workbook();
+    wb.creator = 'Madchimapon & Sirathee';
+    const FONT = 'Tahoma', BROWN = 'FF8B6E5A', INK = 'FF5A4128', MUTED = 'FF7A7268', ZEBRA = 'FFFAF6F0', LINE = 'FFE0D5C8';
+    const font = (o = {}) => ({ name: FONT, size: 10, ...o });
+    function sheet(name, title, cols) {
+      const ws = wb.addWorksheet(name, { views: [{ state: 'frozen', ySplit: 4 }], pageSetup: { paperSize: 9, orientation: 'portrait', fitToPage: true, fitToWidth: 1, fitToHeight: 0 } });
+      ws.columns = cols.map((c) => ({ key: c.key, width: c.width }));
+      ws.mergeCells(1, 1, 1, cols.length);
+      ws.getCell(1, 1).value = `Madchimapon & Sirathee · ${title}`;
+      ws.getCell(1, 1).font = font({ size: 14, bold: true, color: { argb: INK } });
+      ws.mergeCells(2, 1, 2, cols.length);
+      ws.getCell(2, 1).value = `${EVENT_LINE} · ข้อมูล ณ ${stamp()}`;
+      ws.getCell(2, 1).font = font({ size: 9, color: { argb: MUTED } });
+      const head = ws.getRow(4);
+      cols.forEach((c, i) => {
+        const cell = head.getCell(i + 1);
+        cell.value = c.header;
+        cell.font = font({ bold: true, color: { argb: 'FFFFFFFF' } });
+        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: BROWN } };
+        cell.alignment = { vertical: 'middle', horizontal: c.center ? 'center' : 'left' };
+      });
+      head.height = 22;
+      ws.autoFilter = { from: { row: 4, column: 1 }, to: { row: 4, column: cols.length } };
+      return { ws, cols };
+    }
+    function add({ ws, cols }, values, { zebra, bold, color } = {}) {
+      const row = ws.addRow(values);
+      row.eachCell({ includeEmpty: true }, (cell, i) => {
+        cell.font = font({ bold, color: color ? { argb: color } : undefined });
+        cell.alignment = { vertical: 'top', wrapText: true, horizontal: cols[i - 1]?.center ? 'center' : 'left' };
+        cell.border = { bottom: { style: 'hair', color: { argb: LINE } } };
+        if (zebra) cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: ZEBRA } };
+      });
+      return row;
+    }
+
+    // 1. Guests grouped by table (unseated at the end)
+    const s1 = sheet('รายชื่อตามโต๊ะ', 'รายชื่อแขกตามโต๊ะ', [
+      { header: 'โต๊ะ', key: 't', width: 9, center: true }, { header: 'ชื่อโต๊ะ', key: 'tn', width: 18 },
+      { header: 'ฝั่ง', key: 'side', width: 7, center: true }, { header: 'ชื่อแขก', key: 'n', width: 42 },
+      { header: 'จำนวน', key: 'c', width: 8, center: true }, { header: 'กลุ่ม', key: 'g', width: 30 },
+      { header: 'ฝ่าย', key: 's', width: 9 }, { header: 'หมายเหตุ', key: 'note', width: 22 }, { header: 'มาแล้ว', key: 'in', width: 9, center: true },
+    ]);
+    let z = false;
+    for (const t of state.tableList) {
+      const gs = guestsAt(t.id);
+      if (!gs.length) continue;
+      z = !z;
+      gs.forEach((g) => add(s1, [shortLabel(t.id), nameOf(t.id), sideOfTable(t.id), g.name, g.count, g.group, g.side, g.note, checkins[g.id] ? '✓' : ''], { zebra: z }));
+    }
+    state.guests.filter((g) => !g.table).forEach((g) => add(s1, ['ยังไม่จัด', '', '', g.name, g.count, g.group, g.side, g.note, checkins[g.id] ? '✓' : ''], { color: 'FFC0392B' }));
+    add(s1, ['', '', 'รวม', `${state.guests.length} รายการ`, totalPeople(), '', '', '', ''], { bold: true });
+
+    // 2. One row per table
+    const s2 = sheet('สรุปโต๊ะ', 'สรุปแต่ละโต๊ะ', [
+      { header: 'โต๊ะ', key: 't', width: 9, center: true }, { header: 'ชื่อโต๊ะ', key: 'tn', width: 20 }, { header: 'ฝั่ง', key: 'side', width: 7, center: true },
+      { header: 'ที่นั่ง', key: 'cap', width: 8, center: true }, { header: 'จัดแล้ว', key: 'used', width: 8, center: true }, { header: 'ว่าง', key: 'free', width: 8, center: true },
+      { header: 'มาแล้ว', key: 'in', width: 8, center: true }, { header: 'กลุ่มหลัก', key: 'g', width: 36 },
+    ]);
+    state.tableList.forEach((t, i) => {
+      const used = usedAt(t.id), cap = capOf(t.id);
+      add(s2, [shortLabel(t.id), nameOf(t.id), sideOfTable(t.id), cap, used, cap - used, arrivedAt(t.id) || '', mainGroup(t.id)],
+        { zebra: i % 2 === 1, color: used > cap ? 'FFC0392B' : undefined });
+    });
+    const seats = state.tableList.reduce((n, t) => n + capOf(t.id), 0), usedAll = state.tableList.reduce((n, t) => n + usedAt(t.id), 0);
+    add(s2, ['รวม', `${state.tableList.length} โต๊ะ`, '', seats, usedAll, seats - usedAll, '', ''], { bold: true });
+
+    // 3. Name → table, for the welcome desk
+    const s3 = sheet('ค้นหาโต๊ะจากชื่อ', 'ค้นหาโต๊ะจากชื่อ', [
+      { header: 'ชื่อแขก', key: 'n', width: 44 }, { header: 'โต๊ะ', key: 't', width: 10, center: true },
+      { header: 'จำนวน', key: 'c', width: 8, center: true }, { header: 'กลุ่ม', key: 'g', width: 32 },
+    ]);
+    [...state.guests].sort((a, b) => a.name.localeCompare(b.name, 'th'))
+      .forEach((g, i) => add(s3, [g.name, g.table ? shortLabel(g.table) : 'ติดต่อหน้างาน', g.count, g.group], { zebra: i % 2 === 1 }));
+
+    // 4. Per group
+    const s4 = sheet('สรุปกลุ่ม', 'สรุปตามกลุ่ม', [
+      { header: 'กลุ่ม', key: 'g', width: 40 }, { header: 'ฝ่าย', key: 's', width: 9 }, { header: 'รายการ', key: 'r', width: 9, center: true },
+      { header: 'คน', key: 'c', width: 8, center: true }, { header: 'ยังไม่จัด (คน)', key: 'u', width: 13, center: true }, { header: 'โต๊ะ', key: 't', width: 40 },
+    ]);
+    const groupsMap = {};
+    state.guests.forEach((g) => {
+      const k = g.group || '—';
+      const x = (groupsMap[k] ||= { side: g.side, rows: 0, people: 0, unseated: 0, tables: new Set() });
+      x.rows++; x.people += g.count;
+      if (g.table) x.tables.add(g.table); else x.unseated += g.count;
+    });
+    Object.entries(groupsMap).forEach(([k, x], i) => add(s4, [k, x.side, x.rows, x.people, x.unseated || '',
+      [...x.tables].sort((a, b) => orderOf(a) - orderOf(b)).map(shortLabel).join(', ')], { zebra: i % 2 === 1 }));
+
+    const buf = await wb.xlsx.writeBuffer();
+    download(`seating-plan-${fileDate()}.xlsx`, buf, 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+  }
+
+  async function buildWord() {
+    const wantTables = $('prTables').checked, wantGuests = $('prGuests').checked;
+    if (!wantTables && !wantGuests) return toast('Word ใช้ได้กับ "รายชื่อแขกแต่ละโต๊ะ" และ "รายชื่อเรียงตามชื่อ" — ติ๊กอย่างน้อย 1 อย่าง');
+    const d = await loadLib('assets/vendor/docx.umd.js', 'docx');
+    const { Document, Packer, Paragraph, TextRun, Table, TableRow, TableCell, WidthType, AlignmentType, BorderStyle, ShadingType, ImageRun, Footer, PageNumber } = d;
+    const FONT = 'TH Sarabun New';
+    const run = (text, o = {}) => new TextRun({ text: String(text ?? ''), font: FONT, size: o.size || 30, bold: o.bold, italics: o.italics, color: o.color });
+    const para = (children, o = {}) => new Paragraph({ children: [].concat(children), alignment: o.align, spacing: { after: o.after ?? 0, before: o.before ?? 0 }, keepNext: o.keepNext, shading: o.shading });
+    const line = { style: BorderStyle.SINGLE, size: 4, color: 'E0D5C8' };
+    const none = { style: BorderStyle.NONE, size: 0, color: 'FFFFFF' };
+    let logo = null;
+    try { logo = new Uint8Array(await (await fetch('assets/logo-sm.png')).arrayBuffer()); } catch {}
+    const header = (title, en) => [
+      ...(logo ? [para(new ImageRun({ data: logo, transformation: { width: 64, height: 65 } }), { align: AlignmentType.CENTER })] : []),
+      para(run('MADCHIMAPON & SIRATHEE', { size: 30, bold: true, color: '5A4128' }), { align: AlignmentType.CENTER }),
+      para(run(EVENT_LINE, { size: 24, color: '7A7268' }), { align: AlignmentType.CENTER, after: 120 }),
+      para(run(title, { size: 44, bold: true, color: '2C2C2C' }), { align: AlignmentType.CENTER }),
+      para(run(en, { size: 26, italics: true, color: '8B6E5A' }), { align: AlignmentType.CENTER, after: 80 }),
+      para(run(`ข้อมูล ณ ${stamp()}`, { size: 22, color: '7A7268' }), { align: AlignmentType.CENTER, after: 240 }),
+    ];
+    const footer = new Footer({ children: [para([run('Madchimapon & Sirathee · ' + EVENT_LINE + ' · หน้า ', { size: 22, color: '7A7268' }), new TextRun({ children: [PageNumber.CURRENT], font: FONT, size: 22, color: '7A7268' })], { align: AlignmentType.CENTER })] });
+    const page = { size: { width: 11906, height: 16838 }, margin: { top: 1000, bottom: 1000, left: 1000, right: 1000 } };
+    const sections = [];
+
+    if (wantTables) {
+      // Table cards, three per row
+      const cards = state.tableList.filter((t) => guestsAt(t.id).length).map((t) => {
+        const vip = t.vip;
+        return new TableCell({
+          width: { size: 33, type: WidthType.PERCENTAGE },
+          margins: { top: 80, bottom: 80, left: 120, right: 120 },
+          borders: { top: { style: BorderStyle.SINGLE, size: 18, color: vip ? 'B8933F' : '8B6E5A' }, bottom: line, left: line, right: line },
+          shading: vip ? { type: ShadingType.CLEAR, fill: 'FFFCF5', color: 'auto' } : undefined,
+          children: [
+            para([run(shortLabel(t.id), { size: 34, bold: true, color: vip ? 'A07A2C' : '6B5144' }), run(`   ${usedAt(t.id)}/${capOf(t.id)}`, { size: 24, color: '8B6E5A' })]),
+            ...(nameOf(t.id) ? [para(run(nameOf(t.id), { size: 24, color: '7A7268' }))] : []),
+            ...guestsAt(t.id).map((g) => para(run(`• ${g.name}${g.count > 1 ? `  ×${g.count}` : ''}`, { size: 26 }))),
+          ],
+        });
+      });
+      const rows = [];
+      for (let i = 0; i < cards.length; i += 3) {
+        const cells = cards.slice(i, i + 3);
+        while (cells.length < 3) cells.push(new TableCell({ borders: { top: none, bottom: none, left: none, right: none }, children: [para(run(''))] }));
+        rows.push(new TableRow({ children: cells, cantSplit: true }));
+      }
+      sections.push({ properties: { page }, footers: { default: footer }, children: [
+        ...header('รายชื่อแขกแต่ละโต๊ะ', 'Guests by Table'),
+        new Table({ rows, width: { size: 100, type: WidthType.PERCENTAGE }, borders: { insideHorizontal: none, insideVertical: none, top: none, bottom: none, left: none, right: none } }),
+      ] });
+    }
+
+    if (wantGuests) {
+      const cell = (text, o = {}) => new TableCell({
+        width: { size: o.w, type: WidthType.PERCENTAGE },
+        margins: { top: 30, bottom: 30, left: 100, right: 100 },
+        borders: { top: none, left: none, right: none, bottom: line },
+        shading: o.fill ? { type: ShadingType.CLEAR, fill: o.fill, color: 'auto' } : undefined,
+        children: [para(run(text, { size: o.size || 26, bold: o.bold, color: o.color }), { align: o.align })],
+      });
+      const headRow = new TableRow({ tableHeader: true, children: [
+        cell('ชื่อแขก', { w: 58, bold: true, color: 'FFFFFF', fill: '8B6E5A' }),
+        cell('กลุ่ม', { w: 30, bold: true, color: 'FFFFFF', fill: '8B6E5A' }),
+        cell('โต๊ะ', { w: 12, bold: true, color: 'FFFFFF', fill: '8B6E5A', align: AlignmentType.CENTER }),
+      ] });
+      const body = [...state.guests].sort((a, b) => a.name.localeCompare(b.name, 'th')).map((g, i) => new TableRow({ cantSplit: true, children: [
+        cell(g.name + (g.count > 1 ? `  (${g.count} ท่าน)` : ''), { w: 58, fill: i % 2 ? 'FAF6F0' : undefined }),
+        cell(g.group || '', { w: 30, size: 22, color: '7A7268', fill: i % 2 ? 'FAF6F0' : undefined }),
+        cell(g.table ? shortLabel(g.table) : 'ติดต่อหน้างาน', { w: 12, bold: !!g.table, color: g.table ? '6B5144' : 'B0A698', align: AlignmentType.CENTER, fill: i % 2 ? 'FAF6F0' : undefined }),
+      ] }));
+      sections.push({ properties: { page }, footers: { default: footer }, children: [
+        ...header('ค้นหาโต๊ะจากชื่อ', 'Find Your Table'),
+        new Table({ rows: [headRow, ...body], width: { size: 100, type: WidthType.PERCENTAGE } }),
+      ] });
+    }
+
+    const doc = new Document({ creator: 'Madchimapon & Sirathee', title: 'ผังที่นั่งงานแต่ง', styles: { default: { document: { run: { font: FONT, size: 28 } } } }, sections });
+    download(`seating-plan-${fileDate()}.docx`, await Packer.toBlob(doc), 'application/vnd.openxmlformats-officedocument.wordprocessingml.document');
+  }
+  $('dlExcel').addEventListener('click', (e) => withBusy(e.currentTarget, buildExcel));
+  $('dlWord').addEventListener('click', (e) => withBusy(e.currentTarget, buildWord));
 
   // ---------- settings ----------
   $('settingsBtn').addEventListener('click', () => {
