@@ -812,23 +812,49 @@
       box-shadow: var(--shadow-sm);
       text-align: center;
     }
-    .gift-qr {
-      width: 220px;
-      height: 220px;
-      margin: 0 auto;
-      border-radius: 6px;
-      overflow: hidden;
-      display: flex;
+    .gift-account-name {
+      font-size: var(--fs-md);
+      color: var(--text);
+      font-weight: 500;
+    }
+    .gift-account-number {
+      margin: 10px 0 20px;
+      font-family: 'Playfair Display', serif;
+      font-size: 1.9rem;
+      letter-spacing: 0.08em;
+      color: var(--accent-ink);
+      user-select: all;
+    }
+    .gift-copy {
+      display: inline-flex;
       align-items: center;
       justify-content: center;
-      background: var(--beige);
-      border: 1px dashed var(--border);
-    }
-    .gift-qr img { width: 100%; height: 100%; object-fit: contain; background: var(--white); }
-    .gift-qr-placeholder {
-      color: var(--text-muted);
+      min-width: 190px;
+      padding: 11px 28px;
+      border: 1px solid var(--accent);
+      border-radius: 999px;
+      color: var(--accent);
+      font-family: 'Sarabun', sans-serif;
       font-size: var(--fs-sm);
-      letter-spacing: 0.1em;
+      letter-spacing: 0.08em;
+      cursor: pointer;
+      background: linear-gradient(90deg, var(--accent) 0%, var(--accent) 50%, transparent 50%, transparent 100%);
+      background-size: 220% 100%;
+      background-position: right center;
+      transition: background-position var(--dur-slow) var(--ease-in-out),
+                  color var(--dur-normal), transform var(--dur-normal), box-shadow var(--dur-normal);
+    }
+    .gift-copy:hover,
+    .gift-copy.copied {
+      background-position: left center;
+      color: var(--white);
+    }
+    .gift-copy:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 20px rgba(138, 106, 79, 0.3);
+    }
+    @media (max-width: 480px) {
+      .gift-account-number { font-size: 1.6rem; }
     }
     .gift-thanks {
       margin-top: 24px;
@@ -1848,15 +1874,14 @@
     <div class="section-label">Online Blessing</div>
     <h2 class="section-title" data-th="ร่วมอวยพรออนไลน์ได้ที่" data-en="Send Your Blessing Online">ร่วมอวยพรออนไลน์ได้ที่</h2>
     <div class="section-divider"></div>
-    <p data-th="สำหรับท่านใดที่ไม่สะดวกเดินทาง สามารถร่วมผูกแขนออนไลน์ได้ผ่าน QR Code ด้านล่าง"
-       data-en="If you are unable to join us in person, you can send your blessing online via the QR code below">สำหรับท่านใดที่ไม่สะดวกเดินทาง สามารถร่วมผูกแขนออนไลน์ได้ผ่าน QR Code ด้านล่าง</p>
+    <p data-th="สำหรับท่านใดที่ไม่สะดวกเดินทาง สามารถร่วมผูกแขนออนไลน์ได้ที่บัญชีด้านล่าง"
+       data-en="If you are unable to join us in person, you can send your blessing to the account below">สำหรับท่านใดที่ไม่สะดวกเดินทาง สามารถร่วมผูกแขนออนไลน์ได้ที่บัญชีด้านล่าง</p>
   </div>
   <div class="gift-card fade-up">
-    <div class="gift-qr">
-      <img src="assets/qr-code.png" alt="QR Code"
-           onerror="this.remove(); document.getElementById('giftQrPlaceholder').hidden = false;" />
-      <span class="gift-qr-placeholder" id="giftQrPlaceholder" hidden>QR CODE</span>
-    </div>
+    <div class="gift-account-name">น.ส. มัชฌิมาพร จันหาญ</div>
+    <div class="gift-account-number" id="giftAccountNumber">774-3-09346-8</div>
+    <button type="button" class="gift-copy" id="giftCopy"
+            data-th="คัดลอกเลขบัญชี" data-en="Copy Account Number">คัดลอกเลขบัญชี</button>
     <div class="gift-thanks" data-th="ปิ๋มและโต้ ขอขอบคุณค่ะ/ครับ ♡" data-en="With love and gratitude, Pim &amp; Auto ♡">ปิ๋มและโต้ ขอขอบคุณค่ะ/ครับ ♡</div>
   </div>
   <div class="guestbook-wrap" id="guestbook">
@@ -2509,6 +2534,30 @@
     }
   }
   loadGuestbook();
+
+  const giftCopy = document.getElementById('giftCopy');
+  giftCopy.addEventListener('click', async () => {
+    const digits = document.getElementById('giftAccountNumber').textContent.replace(/\D/g, '');
+    try {
+      await navigator.clipboard.writeText(digits);
+    } catch {
+      const ta = document.createElement('textarea');
+      ta.value = digits;
+      ta.style.position = 'fixed';
+      ta.style.opacity = '0';
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand('copy');
+      ta.remove();
+    }
+    giftCopy.classList.add('copied');
+    giftCopy.textContent = currentLang === 'th' ? 'คัดลอกแล้ว ✓' : 'Copied ✓';
+    clearTimeout(giftCopy._t);
+    giftCopy._t = setTimeout(() => {
+      giftCopy.classList.remove('copied');
+      giftCopy.textContent = giftCopy.dataset[currentLang];
+    }, 2000);
+  });
 
   const wishForm = document.getElementById('wishForm');
   const wishSubmit = document.getElementById('wishSubmit');
