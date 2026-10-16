@@ -103,6 +103,15 @@
     .section-label .btn { padding: 4px 10px; font-size: 0.75rem; }
     .modal label.swap-item { display: flex; margin: 0; align-items: center; gap: 8px; padding: 8px 0; border-bottom: 1px solid var(--beige); cursor: pointer; }
     .swap-item input { width: 18px; height: 18px; flex-shrink: 0; }
+    .ck-sec { margin-top: 14px; }
+    .ck-sec h3 { font-size: 0.9rem; font-weight: 600; display: flex; align-items: center; gap: 8px; margin-bottom: 4px; }
+    .ck-sec h3 .n { background: var(--danger); color: white; border-radius: 10px; padding: 0 8px; font-size: 0.75rem; }
+    .ck-sec h3 .n.warn { background: var(--warn); }
+    .ck-sec p { font-size: 0.78rem; color: var(--text-muted); margin-bottom: 4px; }
+    .ck-item { display: flex; align-items: center; gap: 8px; padding: 7px 8px; border-radius: 3px; cursor: pointer; font-size: 0.85rem; border-bottom: 1px solid var(--beige); }
+    .ck-item:hover { background: var(--cream); }
+    .ck-item .go { margin-left: auto; color: var(--accent); font-size: 0.75rem; white-space: nowrap; }
+    .ck-ok { text-align: center; padding: 24px; color: var(--ok); }
     .modal label.check { display: flex; align-items: center; gap: 8px; font-size: 0.88rem; margin-top: 12px; cursor: pointer; }
     .tc-head { display: flex; justify-content: space-between; align-items: baseline; gap: 6px; }
     .tc-no { font-family: 'Playfair Display', serif; font-size: 1.05rem; }
@@ -233,6 +242,11 @@
       #printArea { display: block; font-size: 10pt; }
       #printArea * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
       .print-plan { break-after: page; }
+      .print-qr { break-after: page; text-align: center; padding-top: 10mm; }
+      .print-qr h1 { font-size: 30pt !important; margin-bottom: 4mm !important; }
+      .print-qr p { font-size: 16pt; color: #555; margin-bottom: 8mm; }
+      .print-qr .qr svg { width: 110mm; height: 110mm; }
+      .print-qr .url { font-size: 13pt; margin-top: 6mm; color: #333; }
       .print-plan .plan { margin: 0 auto; }
       .print-plan .ft-name { color: #444; }
       #printArea h1 { font-family: 'Playfair Display', serif; font-size: 16pt; margin-bottom: 10px; }
@@ -261,6 +275,8 @@
       <button class="btn" id="exportBtn">↓ CSV</button>
       <button class="btn" id="printBtn">พิมพ์</button>
       <button class="btn btn-danger" id="clearAllBtn">ล้างทุกโต๊ะ</button>
+      <button class="btn" id="checkBtn">⚠ ตรวจผัง</button>
+      <a class="btn" href="/find.html" target="_blank" rel="noopener" style="text-decoration:none">หน้าค้นหาโต๊ะ ↗</a>
       <button class="btn" id="settingsBtn">ตั้งค่า</button>
       <a class="btn" href="/admin.html" style="text-decoration:none">Admin</a>
     </div>
@@ -397,6 +413,18 @@
   </div>
 </div>
 
+<!-- CHECK MODAL -->
+<div class="modal-bg" id="checkModal">
+  <div class="modal" style="max-width:620px">
+    <h2>ตรวจผัง</h2>
+    <p class="sub" id="ckSub"></p>
+    <div id="ckList"></div>
+    <div class="modal-actions">
+      <button class="btn btn-primary" data-close>ปิด</button>
+    </div>
+  </div>
+</div>
+
 <!-- PRINT MODAL -->
 <div class="modal-bg" id="printModal">
   <div class="modal">
@@ -405,6 +433,7 @@
     <label class="check"><input type="checkbox" id="prPlan" checked /> ผังห้อง (ตำแหน่งโต๊ะ)</label>
     <label class="check"><input type="checkbox" id="prTables" checked /> รายชื่อแขกแต่ละโต๊ะ</label>
     <label class="check"><input type="checkbox" id="prGuests" checked /> รายชื่อแขกเรียงตามชื่อ → เลขโต๊ะ (ไว้ติดหน้างาน)</label>
+    <label class="check"><input type="checkbox" id="prQr" /> ป้าย QR "ค้นหาโต๊ะของคุณ" สำหรับแขก (ติดหน้างาน)</label>
     <div class="modal-actions">
       <button class="btn" data-close>ยกเลิก</button>
       <button class="btn btn-primary" id="prGo">พิมพ์</button>
@@ -757,7 +786,87 @@
   });
 
   // ---------- render ----------
+  // ---------- plan check ----------
+  // Things worth fixing before the day; each row jumps to the table / guest / group.
+  const UNKNOWN_MARK = '⚠ ยังไม่ระบุจำนวน';
+  const normName = (x) => x.replace(/\s*\(\d+\/\d+\)\s*$/, '').replace(/\s+/g, ' ').trim().toLowerCase();
+  function planIssues() {
+    const issues = { over: [], spread: [], few: [], dup: [], unknown: [], unseated: [], total: null };
+    const reg = state.tableList.filter((t) => !t.vip);
+    const L = layoutOf(), leftN = Math.min(reg.length, L.left ?? Math.ceil(reg.length / 2));
+    const sideOf = (id) => { const i = reg.findIndex((t) => t.id === id); return i < 0 ? 'vip' : i < leftN ? 'left' : 'right'; };
+    let seats = 0;
+    for (const t of state.tableList) {
+      const used = usedAt(t.id), cap = capOf(t.id);
+      seats += cap;
+      if (used > cap) issues.over.push({ table: t.id, text: `${labelOf(t.id)} มี ${used}/${cap} คน (เกิน ${used - cap})` });
+      else if (used > 0 && used <= 3) issues.few.push({ table: t.id, text: `${labelOf(t.id)} มีแค่ ${used}/${cap} คน — อาจรวมกับโต๊ะอื่นได้` });
+    }
+    const total = totalPeople();
+    if (total > seats) issues.total = `แขกทั้งหมด ${total} คน แต่มีที่นั่ง ${seats} ที่ — ขาดอีก ${total - seats} ที่ (ประมาณ ${Math.ceil((total - seats) / state.capacity)} โต๊ะ)`;
+    // Groups split across the aisle, or with a gap of 2+ tables between their tables
+    const groups = {};
+    state.guests.forEach((g) => { if (g.table && g.group) (groups[g.group] ||= new Set()).add(g.table); });
+    for (const [name, set] of Object.entries(groups)) {
+      const ids = [...set].sort((a, b) => orderOf(a) - orderOf(b));
+      if (ids.length < 2) continue;
+      const sides = new Set(ids.map(sideOf).filter((x) => x !== 'vip'));
+      const gaps = ids.slice(1).some((id, i) => orderOf(id) - orderOf(ids[i]) > 2);
+      if (sides.size > 1 || gaps) {
+        issues.spread.push({ group: name, text: `${name} — ${ids.map(shortLabel).join(', ')}${sides.size > 1 ? ' (อยู่คนละฝั่งทางเดิน)' : ''}` });
+      }
+    }
+    // Same name in different groups — possibly one person listed twice
+    const byName = {};
+    state.guests.forEach((g) => (byName[normName(g.name)] ||= []).push(g));
+    for (const list of Object.values(byName)) {
+      if (list.length < 2 || new Set(list.map((g) => g.group)).size < 2) continue;
+      list.forEach((g) => issues.dup.push({ guest: g.id, text: `${g.name} · ${g.group || '—'} · ${g.table ? labelOf(g.table) : 'ยังไม่จัด'}` }));
+    }
+    state.guests.forEach((g) => {
+      if ((g.note || '').startsWith(UNKNOWN_MARK)) issues.unknown.push({ guest: g.id, text: `${g.name} · ${g.group || '—'}` });
+      else if (!g.table) issues.unseated.push({ guest: g.id, text: `${g.name} (${g.count} คน) · ${g.group || '—'}` });
+    });
+    return issues;
+  }
+  function issueCount(i) {
+    return i.over.length + i.spread.length + i.dup.length + i.unknown.length + i.unseated.length + (i.total ? 1 : 0);
+  }
+  function updateCheckBadge() {
+    const n = issueCount(planIssues());
+    $('checkBtn').textContent = n ? `⚠ ตรวจผัง (${n})` : '✓ ตรวจผัง';
+  }
+  function renderCheck() {
+    const i = planIssues();
+    const sec = (title, list, note, warn) => !list.length ? '' : `
+      <div class="ck-sec"><h3>${title} <span class="n${warn ? ' warn' : ''}">${list.length}</span></h3>${note ? `<p>${note}</p>` : ''}
+      ${list.slice(0, 60).map((x) => `<div class="ck-item" ${x.table ? `data-ck-table="${x.table}"` : x.guest ? `data-ck-guest="${x.guest}"` : `data-ck-group="${esc(x.group)}"`}>${esc(x.text)}<span class="go">${x.table ? 'เปิดโต๊ะ →' : x.guest ? 'แก้ไข →' : 'ดูในผัง →'}</span></div>`).join('')}
+      ${list.length > 60 ? `<p>… และอีก ${list.length - 60} รายการ</p>` : ''}</div>`;
+    const n = issueCount(i);
+    $('ckSub').textContent = n ? `พบ ${n} เรื่องที่ควรตรวจ — แตะรายการเพื่อไปแก้` : '';
+    $('ckList').innerHTML = (i.total ? `<div class="ck-sec"><h3>ที่นั่งไม่พอ <span class="n">!</span></h3><p>${esc(i.total)}</p></div>` : '')
+      + sec('โต๊ะเกินจำนวน', i.over)
+      + sec('แขกยังไม่ระบุจำนวน', i.unknown, 'ใส่จำนวนคนให้ถูกต้องก่อนจัดโต๊ะ (ตอนนี้นับไว้คนละ 1)')
+      + sec('แขกที่ยังไม่ได้จัดโต๊ะ', i.unseated)
+      + sec('กลุ่มที่นั่งกระจายกัน', i.spread, 'คนกลุ่มเดียวกันอยู่ห่างกัน หรืออยู่คนละฝั่งทางเดิน', true)
+      + sec('ชื่อซ้ำในต่างกลุ่ม', i.dup, 'อาจเป็นคนเดียวกันที่อยู่ในรายชื่อ 2 ที่ — ถ้าเป็นคนละคน ไม่ต้องแก้', true)
+      + sec('โต๊ะที่คนน้อย', i.few, 'ไม่ใช่ข้อผิดพลาด แค่อาจรวมโต๊ะเพื่อประหยัดได้', true)
+      || '<div class="ck-ok">✓ ไม่พบปัญหา ผังพร้อมแล้ว</div>';
+  }
+  $('checkBtn').addEventListener('click', () => { renderCheck(); openModal('checkModal'); });
+  $('ckList').addEventListener('click', (e) => {
+    const it = e.target.closest('.ck-item');
+    if (!it) return;
+    closeModal('checkModal');
+    if (it.dataset.ckTable) return openTableModal(it.dataset.ckTable);
+    if (it.dataset.ckGuest) return openGuestModal(it.dataset.ckGuest);
+    $('tableSearch').value = it.dataset.ckGroup;
+    $('tableSearch').dispatchEvent(new Event('input'));
+    $('main').dataset.view = 'tables';
+  });
+
   function render() {
+    updateCheckBadge();
     renderStats();
     renderGuestList();
     renderGrid();
@@ -847,7 +956,7 @@
     if (f === 'full' && used !== cap) return false;
     if (f === 'over' && used <= cap) return false;
     if (q) {
-      const hay = [shortLabel(n), nameOf(n), ...guestsAt(n).map((g) => g.name)].join(' ').toLowerCase();
+      const hay = [shortLabel(n), nameOf(n), ...guestsAt(n).map((g) => `${g.name} ${g.group}`)].join(' ').toLowerCase();
       if (/^(vip\s*)?\d+$/i.test(q)) return shortLabel(n).toLowerCase() === q.replace(/\s+/g, ' ').replace(/^vip(\d)/, 'vip $1');
       if (!hay.includes(q)) return false;
     }
@@ -1797,9 +1906,30 @@
   $('printBtn').addEventListener('click', () => openModal('printModal'));
   $('undoBtn').addEventListener('click', undo);
   $('redoBtn').addEventListener('click', redo);
-  $('prGo').addEventListener('click', () => {
+  const FIND_URL = () => location.origin + '/find.html';
+  let qrLib = null;
+  function loadQr() {
+    return (qrLib ||= new Promise((res, rej) => {
+      const sc = document.createElement('script');
+      sc.src = 'https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js';
+      sc.onload = () => res(window.qrcode);
+      sc.onerror = () => { qrLib = null; rej(new Error('qr')); };
+      document.head.appendChild(sc);
+    }));
+  }
+  $('prGo').addEventListener('click', async () => {
+    let qrHtml = '';
+    if ($('prQr').checked) {
+      try {
+        const qrcode = await loadQr();
+        const qr = qrcode(0, 'M');
+        qr.addData(FIND_URL());
+        qr.make();
+        qrHtml = `<div class="print-qr"><h1>ค้นหาโต๊ะของคุณ</h1><p>สแกน QR แล้วพิมพ์ชื่อของคุณ</p><div class="qr">${qr.createSvgTag({ cellSize: 8, margin: 2, scalable: true })}</div><div class="url">${esc(FIND_URL())}</div></div>`;
+      } catch { return toast('โหลดตัวสร้าง QR ไม่ได้ — ตรวจการเชื่อมต่ออินเทอร์เน็ต'); }
+    }
     const title = `<h1>ผังที่นั่งงานแต่ง · ${totalPeople()} คน · ${state.tableList.length} โต๊ะ</h1>`;
-    let html = '';
+    let html = qrHtml;
     if ($('prPlan').checked) html += `<div class="print-plan">${title}<div class="print-plan-box">${planMarkup(true)}</div></div>`;
     if ($('prTables').checked) {
       html += `<h1>รายชื่อแขกแต่ละโต๊ะ</h1><div class="print-grid">`;
