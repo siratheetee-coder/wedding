@@ -151,6 +151,14 @@
     .welcome { text-align: center; font-family: 'Playfair Display', serif; font-style: italic; color: var(--accent); font-size: 1.05rem; margin-top: 6px; }
     .welcome + .linkish { display: block; margin: 0 auto; }
 
+    .kiosk-tag { display: inline-block; margin-top: 10px; font-size: 0.72rem; color: var(--accent-dark); background: var(--beige); border-radius: 999px; padding: 3px 12px; }
+    .kiosk-tag[hidden] { display: none; }
+    /* Bigger touch targets on a shared tablet */
+    body.kiosk .wrap { max-width: 640px; }
+    body.kiosk .field input { font-size: 1.3rem; padding: 20px 56px 20px 56px; }
+    body.kiosk .res { padding: 18px 18px 18px 22px; }
+    body.kiosk .res .name { font-size: 1.15rem; }
+
     footer { text-align: center; margin-top: 36px; color: var(--text-muted); font-size: 0.78rem; line-height: 1.8; }
     footer .sig { font-family: 'Playfair Display', serif; font-style: italic; color: var(--accent); font-size: 0.95rem; }
 
@@ -167,6 +175,7 @@
       <div class="divider"></div>
       <h1>ค้นหาโต๊ะของคุณ<em>Find your table</em></h1>
       <p class="lead">พิมพ์ชื่อ ชื่อเล่น หรือชื่อกลุ่ม / หน่วยงานของคุณ</p>
+      <p class="kiosk-tag" id="kioskTag" hidden>จุดค้นหาโต๊ะ · หน้าจอจะล้างเองหลังใช้งาน</p>
     </header>
 
     <div class="search">
@@ -194,8 +203,11 @@
   let plan = null, picked = null, checkins = {};
   // The guest this phone belongs to, remembered after they check in or tap "this is me"
   const ME_KEY = 'wedding_find_me';
-  const getMe = () => { try { return localStorage.getItem(ME_KEY); } catch { return null; } };
-  const setMe = (id) => { try { id ? localStorage.setItem(ME_KEY, id) : localStorage.removeItem(ME_KEY); } catch {} };
+  // Kiosk mode (find.html?kiosk) is for a shared tablet at the entrance: nobody is
+  // remembered, and the screen clears itself after a check-in or when left idle.
+  const KIOSK = new URLSearchParams(location.search).has('kiosk');
+  const getMe = () => { if (KIOSK) return null; try { return localStorage.getItem(ME_KEY); } catch { return null; } };
+  const setMe = (id) => { if (KIOSK) return; try { id ? localStorage.setItem(ME_KEY, id) : localStorage.removeItem(ME_KEY); } catch {} };
   const hhmm = (iso) => new Date(iso).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' });
 
   const IDLE = `<span class="orn">✧ ✧ ✧</span>ยินดีต้อนรับสู่งานของเรา<br>เริ่มพิมพ์ชื่อด้านบนเพื่อดูโต๊ะของคุณ
@@ -326,7 +338,7 @@
         <button class="linkish" data-ci="undo">ยกเลิกเช็กอิน</button>`;
     }
     return `<button class="ci-btn" data-ci="in">✓ ฉันได้ที่นั่งแล้ว</button>
-      <div class="ci-note">กดเมื่อถึงงานและนั่งที่โต๊ะแล้ว${getMe() === g.id ? '' : ' · ระบบจะจำชื่อคุณไว้ในเครื่องนี้'}</div>`;
+      <div class="ci-note">กดเมื่อถึงงานและนั่งที่โต๊ะแล้ว${KIOSK || getMe() === g.id ? '' : ' · ระบบจะจำชื่อคุณไว้ในเครื่องนี้'}</div>`;
   }
   $('detail').addEventListener('click', async (e) => {
     const b = e.target.closest('[data-ci]');
@@ -340,6 +352,7 @@
       const { at } = await res.json();
       if (at) { checkins[g.id] = at; setMe(g.id); } else delete checkins[g.id];
       $('ci').innerHTML = checkinBlock(g);
+      if (KIOSK && at) resetSoon(8000);
     } catch {
       b.disabled = false;
       $('ci').insertAdjacentHTML('beforeend', '<div class="ci-note">บันทึกไม่สำเร็จ กรุณาลองอีกครั้ง</div>');
@@ -361,6 +374,20 @@
   // Pick up last-minute changes if the page stays open (e.g. on a kiosk)
   setInterval(load, 120000);
   document.addEventListener('visibilitychange', () => { if (!document.hidden) load(); });
+  // Kiosk: back to an empty search for the next guest
+  let idleTimer;
+  function resetNow() {
+    $('q').value = '';
+    search();
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+  function resetSoon(ms) { clearTimeout(idleTimer); idleTimer = setTimeout(resetNow, ms); }
+  if (KIOSK) {
+    document.body.classList.add('kiosk');
+    $('kioskTag').hidden = false;
+    ['pointerdown', 'keydown', 'input', 'scroll'].forEach((ev) => document.addEventListener(ev, () => { if ($('q').value) resetSoon(60000); }, { passive: true }));
+  }
+
   load();
 })();
 </script>

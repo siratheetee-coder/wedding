@@ -112,6 +112,12 @@
     .ck-item:hover { background: var(--cream); }
     .ck-item .go { margin-left: auto; color: var(--accent); font-size: 0.75rem; white-space: nowrap; }
     .ck-ok { text-align: center; padding: 24px; color: var(--ok); }
+    .m-name { width: 100%; font: inherit; font-size: 0.88rem; padding: 4px 6px; margin-left: -6px; border: 1px solid transparent; border-radius: 3px; background: transparent; color: var(--text); }
+    .m-name:hover { border-color: var(--border); }
+    .m-name:focus, .m-count:focus { outline: none; border-color: var(--accent); background: white; }
+    .m-count { width: 56px; font: inherit; font-size: 0.85rem; padding: 4px 6px; border: 1px solid var(--border); border-radius: 3px; text-align: center; flex-shrink: 0; }
+    .m-count-wrap { display: flex; align-items: center; gap: 3px; font-size: 0.72rem; color: var(--text-muted); flex-shrink: 0; }
+    .member .btn { padding: 6px 9px; }
     .modal label.check { display: flex; align-items: center; gap: 8px; font-size: 0.88rem; margin-top: 12px; cursor: pointer; }
     .tc-head { display: flex; justify-content: space-between; align-items: baseline; gap: 6px; }
     .tc-no { font-family: 'Playfair Display', serif; font-size: 1.05rem; }
@@ -198,6 +204,7 @@
     /* MODAL */
     .modal-bg { position: fixed; inset: 0; background: rgba(44,44,44,0.45); display: none; align-items: center; justify-content: center; padding: 16px; z-index: 50; }
     .modal-bg.open { display: flex; }
+    #guestModal, #swapModal { z-index: 55; }   /* can open on top of a table */
     .modal { background: white; border-radius: 4px; width: 100%; max-width: 520px; max-height: 90vh; overflow-y: auto; padding: 24px; }
     .modal h2 { font-family: 'Playfair Display', serif; font-weight: 400; font-size: 1.3rem; margin-bottom: 4px; }
     .modal p.sub { color: var(--text-muted); font-size: 0.82rem; margin-bottom: 16px; line-height: 1.6; }
@@ -485,6 +492,7 @@
     <label class="check"><input type="checkbox" id="prTables" checked /> รายชื่อแขกแต่ละโต๊ะ</label>
     <label class="check"><input type="checkbox" id="prGuests" checked /> รายชื่อแขกเรียงตามชื่อ → เลขโต๊ะ (ไว้ติดหน้างาน)</label>
     <label class="check"><input type="checkbox" id="prQr" /> ป้าย QR "ค้นหาโต๊ะของคุณ" สำหรับแขก (ติดหน้างาน)</label>
+    <p class="hint" style="margin-top:8px">แท็บเล็ตตั้งหน้างานให้แขกใช้ร่วมกัน: เปิด <a href="/find.html?kiosk" target="_blank" rel="noopener">หน้าค้นหาโต๊ะแบบโหมดหน้างาน ↗</a> (ไม่จำชื่อ และล้างหน้าจอเอง)</p>
     <div class="modal-actions">
       <button class="btn" data-close>ยกเลิก</button>
       <button class="btn btn-primary" id="prGo">พิมพ์</button>
@@ -772,6 +780,7 @@
   });
 
   // Re-render after the plan was replaced underneath the UI
+  const editingInline = () => $('tmMembers').contains(document.activeElement);
   function refreshUI() {
     selected = new Set([...selected].filter((id) => findGuest(id)));
     if (openTable && !tableById(openTable)) { openTable = null; closeModal('tableModal'); }
@@ -783,7 +792,7 @@
   const POLL_MS = 15000;   // each check is a Redis read; keep well inside the free quota
   let polling = false;
   async function poll() {
-    if (polling || saving || saveTimer || document.hidden || !state) return;
+    if (polling || saving || saveTimer || document.hidden || !state || editingInline()) return;
     // Don't swap data out from under a form someone is filling in
     if (['guestModal', 'swapModal', 'importModal', 'settingsModal', 'autoModal'].some((id) => $(id).classList.contains('open'))) return;
     polling = true;
@@ -818,7 +827,7 @@
       const next = (await (await fetch('/api/checkin', { cache: 'no-store' })).json()).checkins || {};
       if (canon(next) === canon(checkins)) return;
       checkins = next;
-      if (state) { render(); if (openTable) renderTableModal(); }
+      if (state) { render(); if (openTable && !editingInline()) renderTableModal(); }
     } catch {}
   }
   setInterval(loadCheckins, 30000);
@@ -1830,9 +1839,10 @@
     $('tmMembers').innerHTML = gs.length ? gs.map((g) => `
       <div class="member">
         <span class="guest-dot" style="background:${colorOf(g.group)}"></span>
-        <div class="guest-info"><div class="guest-name">${esc(g.name)}</div><div class="guest-meta">${checkins[g.id] ? '<span class="in-badge">✓ มาแล้ว</span> · ' : ''}${esc([g.side, g.group, g.note].filter(Boolean).join(' · ') || '—')}</div></div>
-        <span class="guest-count">${g.count}</span>
-        ${g.count > 1 ? `<button class="btn" data-split="${g.id}">แบ่ง</button>` : ''}
+        <div class="guest-info"><input class="m-name" data-m-name="${g.id}" value="${esc(g.name)}" title="แตะเพื่อแก้ชื่อ" /><div class="guest-meta">${checkins[g.id] ? '<span class="in-badge">✓ มาแล้ว</span> · ' : ''}${esc([g.side, g.group, g.note].filter(Boolean).join(' · ') || '—')}</div></div>
+        <span class="m-count-wrap"><input class="m-count" type="number" min="1" max="99" data-m-count="${g.id}" value="${g.count}" title="จำนวนคน" />คน</span>
+        <button class="btn" data-m-edit="${g.id}" title="แก้ไขทั้งหมด">✎</button>
+        <button class="btn" data-split="${g.id}"${g.count > 1 ? '' : ' style="visibility:hidden" tabindex="-1"'}>แบ่ง</button>
         <button class="btn" data-move="${g.id}">ย้าย</button>
         <button class="btn" data-unseat="${g.id}">เอาออก</button>
       </div>`).join('') : '<div class="hint">ยังไม่มีแขก</div>';
@@ -1902,7 +1912,34 @@
     if (!e.target.closest('[data-cancel-sel]')) return;
     e.preventDefault(); selected.clear(); renderGuestList(); renderGrid();
   });
+  // Edit a guest's name / head count right in the table dialog (saved on change)
+  $('tmMembers').addEventListener('change', (e) => {
+    const nameIn = e.target.closest('[data-m-name]'), countIn = e.target.closest('[data-m-count]');
+    const g = findGuest((nameIn || countIn)?.dataset.mName || (nameIn || countIn)?.dataset.mCount);
+    if (!g) return;
+    if (nameIn) {
+      const v = nameIn.value.trim();
+      if (!v) { nameIn.value = g.name; return toast('ชื่อห้ามว่าง'); }
+      if (v === g.name) return;
+      g.name = v;
+    } else {
+      const v = Math.min(99, Math.max(1, parseInt(countIn.value) || g.count));
+      countIn.value = v;
+      if (v === g.count) return;
+      g.count = v;
+      // A real head count replaces the "not specified yet" marker from the import
+      if ((g.note || '').startsWith(UNKNOWN_MARK)) g.note = g.note.slice(UNKNOWN_MARK.length).trim();
+    }
+    persist();
+    render();
+    renderTableModal();
+  });
+  $('tmMembers').addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' && e.target.matches('.m-name, .m-count')) e.target.blur();
+  });
   $('tmMembers').addEventListener('click', (e) => {
+    const ed = e.target.closest('[data-m-edit]');
+    if (ed) return openGuestModal(ed.dataset.mEdit);
     const mv = e.target.closest('[data-move]');
     if (mv) return startMove([mv.dataset.move]);
     const sp = e.target.closest('[data-split]');
