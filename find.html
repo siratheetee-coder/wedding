@@ -127,6 +127,18 @@
     .t.on { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 600; transform: scale(1.4); position: relative; z-index: 1; animation: pulse 1.8s ease-in-out infinite; }
     .vip-row .t.on { background: var(--gold); border-color: var(--gold); }
     @keyframes pulse { 0%, 100% { box-shadow: 0 0 0 3px rgba(139,110,90,0.25); } 50% { box-shadow: 0 0 0 9px rgba(139,110,90,0.06); } }
+    .free-room { position: relative; width: 100%; background: var(--white); border: 1px solid var(--border); border-radius: 8px; }
+    .fr-item { position: absolute; display: flex; align-items: center; justify-content: center; text-align: center; font-size: 0.5rem; color: var(--accent-dark); border-radius: 4px; overflow: hidden; padding: 1px; }
+    .fr-stage { background: linear-gradient(180deg, #efe6da, #e3d7c6); letter-spacing: 0.3em; font-size: 0.6rem; border-radius: 4px 4px 12px 12px; }
+    .fr-pillar { background: #8a8178; color: #fff; }
+    .fr-buffet { background: #e8f0e1; color: #4f7343; }
+    .fr-door { border: 1px dashed var(--accent-soft); color: var(--accent); }
+    .fr-aisle { background: repeating-linear-gradient(180deg, #f6f1ea 0 6px, #fbf8f4 6px 12px); color: transparent; }
+    .fr-desk { background: #e8eef6; color: #3e5b80; }
+    .fr-dance { background: #faf3e6; color: var(--gold); }
+    .fr-label { color: var(--text-muted); }
+    .fr-t { position: absolute; display: flex; align-items: center; justify-content: center; }
+    .fr-t .t { width: 80%; font-size: 0.42rem; }
     .legend { display: flex; justify-content: space-between; font-size: 0.62rem; color: var(--text-muted); margin-top: 8px; padding: 0 4px; }
 
     .mates { margin-top: 18px; text-align: center; }
@@ -224,7 +236,9 @@
     reg.forEach((t, i) => (label[t.id] = { short: String(i + 1), vip: false, name: t.name }));
     const L = Object.assign({ perRow: 5, left: null }, s.layout);
     const leftN = Math.min(reg.length, L.left ?? Math.ceil(reg.length / 2));
-    return { guests: s.guests || [], vip, left: reg.slice(0, leftN), right: reg.slice(leftN), cols: Math.max(1, L.perRow), label };
+    // Free-form room from the planner: tables keep their grid cell, plus room items
+    const free = L.mode === 'free' && s.room ? { ...s.room, tables: list.filter((t) => t.pos && t.pos.x < s.room.cols && t.pos.y < s.room.rows) } : null;
+    return { guests: s.guests || [], vip, left: reg.slice(0, leftN), right: reg.slice(leftN), cols: Math.max(1, L.perRow), label, free };
   }
 
   async function load() {
@@ -306,7 +320,30 @@
     }).join('');
     const t = (x) => `<div class="t${x.id === g.table ? ' on' : ''}">${esc(plan.label[x.id].short.replace('VIP ', 'V'))}</div>`;
     const mates = party.filter((x) => x !== g).map((x) => x.name);
-    const side = plan.left.some((x) => x.id === g.table) ? 'ฝั่งซ้ายของทางเดิน' : plan.right.some((x) => x.id === g.table) ? 'ฝั่งขวาของทางเดิน' : 'แถวหน้าสุดหน้าเวที';
+    let side = plan.left.some((x) => x.id === g.table) ? 'ฝั่งซ้ายของทางเดิน' : plan.right.some((x) => x.id === g.table) ? 'ฝั่งขวาของทางเดิน' : 'แถวหน้าสุดหน้าเวที';
+    let roomHtml = `
+          <div class="stage">เวที</div>
+          ${plan.vip.length ? `<div class="vip-row">${plan.vip.map(t).join('')}</div>` : ''}
+          <div class="sides">
+            <div class="side" style="grid-template-columns:repeat(${plan.cols},1fr)">${plan.left.map(t).join('')}</div>
+            <div class="aisle"></div>
+            <div class="side" style="grid-template-columns:repeat(${plan.cols},1fr)">${plan.right.map(t).join('')}</div>
+          </div>
+          <div class="legend"><span>ฝั่งซ้าย</span><span>ทางเดิน</span><span>ฝั่งขวา</span></div>`;
+    if (plan.free) {
+      // Draw the real room to scale; position everything in % of the room
+      const F = plan.free, pct = (v, n) => (v / n) * 100;
+      const me = F.tables.find((x) => x.id === g.table);
+      const stage = F.items.find((it) => it.type === 'stage');
+      if (me) {
+        const row = me.pos.y - (stage ? stage.y + stage.h : 0) + 1;
+        side = `${row >= 1 ? `แถวที่ ${row} จากเวที · ` : ''}${me.pos.x < F.cols / 2 ? 'ฝั่งซ้าย' : 'ฝั่งขวา'}`;
+      } else side = 'ตำแหน่งโต๊ะยังไม่ได้วางในผัง';
+      roomHtml = `<div class="free-room" style="padding-top:${pct(F.rows, F.cols)}%">
+          ${F.items.map((it) => `<div class="fr-item fr-${esc(it.type)}" style="left:${pct(it.x, F.cols)}%;top:${pct(it.y, F.rows)}%;width:${pct(it.w, F.cols)}%;height:${pct(it.h, F.rows)}%"><span>${esc(it.label || '')}</span></div>`).join('')}
+          ${F.tables.map((x) => `<div class="fr-t" style="left:${pct(x.pos.x, F.cols)}%;top:${pct(x.pos.y, F.rows)}%;width:${pct(1, F.cols)}%;height:${pct(1, F.rows)}%">${t(x)}</div>`).join('')}
+        </div>`;
+    }
     $('detail').innerHTML = `
       <div class="card">
         <div class="eyebrow">Your table</div>
@@ -317,14 +354,7 @@
         <div class="checkin" id="ci">${checkinBlock(g)}</div>
         <div class="room">
           <div class="room-title">ตำแหน่งในห้องจัดเลี้ยง</div>
-          <div class="stage">เวที</div>
-          ${plan.vip.length ? `<div class="vip-row">${plan.vip.map(t).join('')}</div>` : ''}
-          <div class="sides">
-            <div class="side" style="grid-template-columns:repeat(${plan.cols},1fr)">${plan.left.map(t).join('')}</div>
-            <div class="aisle"></div>
-            <div class="side" style="grid-template-columns:repeat(${plan.cols},1fr)">${plan.right.map(t).join('')}</div>
-          </div>
-          <div class="legend"><span>ฝั่งซ้าย</span><span>ทางเดิน</span><span>ฝั่งขวา</span></div>
+          ${roomHtml}
         </div>
         ${mates.length ? `<div class="mates"><h3>นั่งร่วมโต๊ะกับ</h3><div class="chips">${mates.slice(0, 10).map((m) => `<span>${esc(m)}</span>`).join('')}${mates.length > 10 ? `<span>+${mates.length - 10}</span>` : ''}</div></div>` : ''}
       </div>`;

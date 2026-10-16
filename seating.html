@@ -197,6 +197,36 @@
     .ft.drop-ok .ft-circle { border-color: var(--ok); box-shadow: 0 0 0 3px #6a8f5c55; }
     .ft.drop-bad .ft-circle { border-color: var(--danger); box-shadow: 0 0 0 3px #c0392b44; }
     .reorder .ft { touch-action: none; cursor: grab; }
+    /* Free-form room: a grid of 96px cells; tables and room items sit on cells */
+    .seg.mode { display: inline-flex; }
+    .seg.mode button { padding: 5px 10px; flex: none; font-size: 0.78rem; }
+    .plan-bar.palette { background: var(--beige); padding: 8px 10px; border-radius: 6px; }
+    .plan-bar.palette .btn { background: white; }
+    .room { position: relative; margin: 0 auto; background-color: #fff; border: 2px solid #d9cdbd; border-radius: 10px;
+      background-image: linear-gradient(to right, #f4efe8 1px, transparent 1px), linear-gradient(to bottom, #f4efe8 1px, transparent 1px); background-size: 96px 96px; }
+    .room.print { background-image: none; }
+    .room-slot { position: absolute; width: 96px; height: 96px; display: flex; justify-content: center; padding-top: 2px; }
+    .room-slot .ft-name { max-width: 92px; }
+    .room-item { position: absolute; display: flex; align-items: center; justify-content: center; text-align: center; font-size: 0.72rem; letter-spacing: 0.08em; color: var(--accent-dark); border-radius: 6px; padding: 4px; overflow: hidden; }
+    .room-item span { pointer-events: none; }
+    .ri-stage { background: linear-gradient(180deg, #efe6da, #e3d7c6); border-radius: 6px 6px 22px 22px; letter-spacing: 0.4em; font-size: 0.8rem; }
+    .ri-pillar { background: #8a8178; color: #fff; border-radius: 4px; }
+    .ri-buffet { background: #e8f0e1; border: 1px solid #c7d8b9; color: #4f7343; }
+    .ri-door { border: 2px dashed var(--accent-soft, #b08968); color: var(--accent); background: #fffaf3; }
+    .ri-aisle { background: repeating-linear-gradient(180deg, #f6f1ea 0 10px, #fbf8f4 10px 20px); color: var(--text-muted); writing-mode: vertical-rl; letter-spacing: 0.4em; }
+    .ri-aisle.wide { writing-mode: horizontal-tb; }
+    .ri-desk { background: #e8eef6; border: 1px solid #c3d1e3; color: #3e5b80; }
+    .ri-dance { background: repeating-linear-gradient(45deg, #faf3e6 0 12px, #f4ead8 12px 24px); border: 1px solid #e6d6b8; color: #a07a2c; }
+    .ri-label { color: var(--text-muted); font-style: italic; }
+    .room.editing .room-item { cursor: grab; outline: 2px dashed rgba(139,110,90,0.55); outline-offset: -2px; touch-action: none; }
+    .room.editing .room-item:hover { outline-color: var(--accent); }
+    .cell-hl { position: absolute; border: 2px dashed var(--accent); border-radius: 50%; background: rgba(139,110,90,0.08); pointer-events: none; z-index: 3; }
+    .cell-hl.rect { border-radius: 6px; }
+    .cell-hl.bad { border-color: var(--danger); background: rgba(192,57,43,0.08); }
+    .tray { margin-top: 14px; padding: 10px; border: 2px dashed var(--border); border-radius: 8px; background: #fff; }
+    .tray.drop-ok { border-color: var(--accent); background: #f7f1ea; }
+    .tray-title { font-size: 0.78rem; color: var(--text-muted); margin-bottom: 6px; }
+    .tray-list { display: flex; flex-wrap: wrap; gap: 2px; }
     .side-slot { width: 64px; height: 64px; margin: 8px auto 0; border-radius: 50%; border: 2px dashed var(--border); color: var(--accent); display: flex; flex-direction: column; align-items: center; justify-content: center; font-size: 1.2rem; line-height: 1; cursor: pointer; background: white; transition: border-color 0.15s, background 0.15s; }
     .side-slot small { font-size: 0.55rem; color: var(--text-muted); margin-top: 3px; }
     .side-slot:hover, .side-slot.drop-ok { border-color: var(--accent); background: #f7f1ea; }
@@ -486,6 +516,25 @@
   </div>
 </div>
 
+<!-- ROOM ITEM MODAL -->
+<div class="modal-bg" id="itemModal">
+  <div class="modal" style="max-width:380px">
+    <h2 id="imTitle">แก้สิ่งของในห้อง</h2>
+    <label>ชื่อ / ข้อความ</label>
+    <input class="field" id="imLabel" />
+    <div class="row">
+      <div style="flex:1"><label>กว้าง (ช่อง)</label><input class="field" id="imW" type="number" min="1" max="40" /></div>
+      <div style="flex:1"><label>ยาว (ช่อง)</label><input class="field" id="imH" type="number" min="1" max="40" /></div>
+    </div>
+    <p class="hint" style="margin-top:8px">1 ช่อง = พื้นที่ของโต๊ะ 1 ตัว · ลากสิ่งของในห้องเพื่อย้ายตำแหน่ง</p>
+    <div class="modal-actions">
+      <button class="btn btn-danger left" id="imDelete">ลบ</button>
+      <button class="btn" data-close>ยกเลิก</button>
+      <button class="btn btn-primary" id="imSave">บันทึก</button>
+    </div>
+  </div>
+</div>
+
 <!-- CHECK MODAL -->
 <div class="modal-bg" id="checkModal">
   <div class="modal" style="max-width:620px">
@@ -750,6 +799,7 @@
     const merged = clone(theirs);
     merged.capacity = mine.capacity !== b.capacity ? mine.capacity : theirs.capacity;
     merged.layout = canon(mine.layout) !== canon(b.layout) ? mine.layout : theirs.layout;
+    merged.room = canon(mine.room) !== canon(b.room) ? mine.room : theirs.room;
     merged.tableList = mergeList(b.tableList, mine.tableList, theirs.tableList);
     merged.guests = mergeList(b.guests, mine.guests, theirs.guests);
     const m = migrate(merged);
@@ -912,7 +962,10 @@
     const issues = { over: [], spread: [], few: [], dup: [], unknown: [], unseated: [], total: null };
     const reg = state.tableList.filter((t) => !t.vip);
     const L = layoutOf(), leftN = Math.min(reg.length, L.left ?? Math.ceil(reg.length / 2));
-    const sideOf = (id) => { const i = reg.findIndex((t) => t.id === id); return i < 0 ? 'vip' : i < leftN ? 'left' : 'right'; };
+    const sideOf = (id) => {
+      if (isFree()) { const t = tableById(id); return t?.vip ? 'vip' : inRoom(t?.pos) && t.pos.x < roomOf().cols / 2 ? 'left' : 'right'; }
+      const i = reg.findIndex((t) => t.id === id); return i < 0 ? 'vip' : i < leftN ? 'left' : 'right';
+    };
     let seats = 0;
     for (const t of state.tableList) {
       const used = usedAt(t.id), cap = capOf(t.id);
@@ -1127,8 +1180,100 @@
     const top = Object.entries(count).sort((a, b) => b[1] - a[1])[0];
     return top ? ` · ส่วนใหญ่ฝ่าย${esc(top[0])}` : '';
   }
+  // ---------- free-form room ----------
+  // In "free" mode each table has pos {x, y} on a grid of cells (one table per
+  // cell) and the room holds items such as the stage, pillars or a buffet.
+  // Table numbers can follow position: front row (near the stage) first, then
+  // left to right — VIP tables numbered among themselves as before.
+  const CELL = 96;
+  const ITEM_TYPES = {
+    stage: { label: 'เวที', w: 4, h: 1 }, pillar: { label: 'เสา', w: 1, h: 1 }, buffet: { label: 'บุฟเฟต์', w: 3, h: 1 },
+    door: { label: 'ประตู', w: 1, h: 1 }, aisle: { label: 'ทางเดิน', w: 1, h: 4 }, desk: { label: 'โต๊ะลงทะเบียน', w: 2, h: 1 },
+    dance: { label: 'ฟลอร์', w: 3, h: 2 }, label: { label: 'ป้ายข้อความ', w: 2, h: 1 },
+  };
+  let roomEditing = false;
+  const isFree = () => layoutOf().mode === 'free';
+  const roomOf = () => Object.assign({ cols: 12, rows: 10, items: [] }, state.room);
+  const inRoom = (pos, R = roomOf()) => !!pos && pos.x >= 0 && pos.y >= 0 && pos.x < R.cols && pos.y < R.rows;
+  const tableAtCell = (x, y, except) => state.tableList.find((t) => t.id !== except && t.pos && t.pos.x === x && t.pos.y === y);
+  const itemAtCell = (x, y, except) => roomOf().items.find((it) => it.id !== except && it.type !== 'label' && x >= it.x && x < it.x + it.w && y >= it.y && y < it.y + it.h);
+  function firstFreeCell() {
+    const R = roomOf();
+    for (let y = 0; y < R.rows; y++) for (let x = 0; x < R.cols; x++) if (!tableAtCell(x, y) && !itemAtCell(x, y)) return { x, y };
+    state.room = { ...R, rows: R.rows + 1 };
+    return { x: 0, y: R.rows };
+  }
+  // Number tables by where they stand: rows from the stage back, then left to right
+  function renumberByPosition() {
+    const R = roomOf(), key = (t) => (inRoom(t.pos, R) ? t.pos.y * 1000 + t.pos.x : 1e9 + state.tableList.indexOf(t));
+    const vip = state.tableList.filter((t) => t.vip).sort((a, b) => key(a) - key(b));
+    const reg = state.tableList.filter((t) => !t.vip).sort((a, b) => key(a) - key(b));
+    state.tableList = [...vip, ...reg];
+  }
+  const autoNumber = () => layoutOf().autoNumber !== false;
+  // Start a free room from the automatic layout so nothing has to be placed by hand
+  function initFreeLayout() {
+    const per = Math.max(1, layoutOf().perRow);
+    const vip = state.tableList.filter((t) => t.vip), reg = state.tableList.filter((t) => !t.vip);
+    const leftN = leftCount(), left = reg.slice(0, leftN), right = reg.slice(leftN);
+    const cols = per * 2 + 1;
+    const items = [{ id: tid(), type: 'stage', x: 0, y: 0, w: cols, h: 1, label: 'เวที' }];
+    let y = 1;
+    if (vip.length) {
+      const start = Math.max(0, Math.floor((cols - vip.length) / 2));
+      vip.forEach((t, i) => (t.pos = { x: (start + i) % cols, y: y + Math.floor((start + i) / cols) }));
+      y += Math.ceil((start + vip.length) / cols);
+    }
+    left.forEach((t, i) => (t.pos = { x: i % per, y: y + Math.floor(i / per) }));
+    right.forEach((t, i) => (t.pos = { x: per + 1 + (i % per), y: y + Math.floor(i / per) }));
+    const h = Math.max(1, Math.ceil(left.length / per), Math.ceil(right.length / per));
+    items.push({ id: tid(), type: 'aisle', x: per, y, w: 1, h, label: 'ทางเดิน' });
+    state.room = { cols, rows: y + h + 1, items };
+  }
+  function setLayoutMode(mode) {
+    if (mode === layoutOf().mode || (mode === 'auto' && !isFree())) return;
+    if (mode === 'free' && !state.tableList.some((t) => t.pos)) initFreeLayout();
+    state.layout = { ...layoutOf(), mode };
+    roomEditing = false;
+    persist(); render();
+    toast(mode === 'free' ? 'เปิดผังห้องอิสระ — ลากโต๊ะไปวางช่องไหนก็ได้' : 'กลับไปใช้ผังอัตโนมัติ (ตำแหน่งในผังอิสระยังเก็บไว้)');
+  }
+  // A stage / pillar placed or grown over tables bumps them to the "not placed" tray
+  function evictUnderItems() {
+    const R = roomOf();
+    const hit = state.tableList.filter((t) => inRoom(t.pos, R) && itemAtCell(t.pos.x, t.pos.y));
+    hit.forEach((t) => delete t.pos);
+    if (hit.length) toast(`มี ${hit.length} โต๊ะถูกทับ — ย้ายไปไว้ในกล่อง "ยังไม่ได้วาง" ด้านล่างแล้ว`, 4000);
+    return hit.length;
+  }
+  // Drop a table on a cell: swap with a table already there; refuse cells under an item
+  function placeTable(id, cell) {
+    const t = tableById(id);
+    if (!t) return;
+    const it = itemAtCell(cell.x, cell.y);
+    if (it) return toast(`ช่องนี้เป็น${it.label || ITEM_TYPES[it.type].label} — วางโต๊ะไม่ได้`);
+    const other = tableAtCell(cell.x, cell.y, id);
+    if (other) other.pos = t.pos && inRoom(t.pos) ? { ...t.pos } : undefined;
+    t.pos = { x: cell.x, y: cell.y };
+    if (autoNumber()) renumberByPosition();
+    persist(); render();
+    toast(other ? `สลับที่กับ${labelOf(other.id)}แล้ว` : `วาง${labelOf(id)}แล้ว`);
+  }
+  function freeRoomMarkup(forPrint, selPeople, searching) {
+    const R = roomOf();
+    const items = R.items.map((it) => `<div class="room-item ri-${it.type}${it.type === 'aisle' && it.w > it.h ? ' wide' : ''}"${forPrint ? '' : ` data-item="${it.id}"`}
+      style="left:${it.x * CELL}px;top:${it.y * CELL}px;width:${it.w * CELL}px;height:${it.h * CELL}px"><span>${esc(it.label || ITEM_TYPES[it.type]?.label || '')}</span></div>`).join('');
+    const tables = state.tableList.filter((t) => inRoom(t.pos, R)).map((t) =>
+      `<div class="room-slot" style="left:${t.pos.x * CELL}px;top:${t.pos.y * CELL}px">${planTable(t, selPeople, searching, forPrint)}</div>`).join('');
+    return `<div class="plan free"><div class="room${forPrint ? ' print' : ''}${roomEditing && !forPrint ? ' editing' : ''}" data-room style="width:${R.cols * CELL}px;height:${R.rows * CELL}px">${items}${tables}</div></div>`;
+  }
+
   // The room itself (stage, VIP row, two sides) — shared by the screen and print
   function planMarkup(forPrint) {
+    if (isFree()) {
+      return freeRoomMarkup(forPrint, forPrint ? 0 : [...selected].map(findGuest).filter(Boolean).reduce((s, g) => s + g.count, 0),
+        !forPrint && !!($('tableSearch').value.trim() || $('tableFilter').value));
+    }
     const selPeople = forPrint ? 0 : [...selected].map(findGuest).filter(Boolean).reduce((s, g) => s + g.count, 0);
     const searching = !forPrint && !!($('tableSearch').value.trim() || $('tableFilter').value);
     const L = layoutOf();
@@ -1155,7 +1300,37 @@
         </div>
       </div>`;
   }
+  function renderFreePlan() {
+    const R = roomOf(), L = layoutOf();
+    const unplaced = state.tableList.filter((t) => !inRoom(t.pos, R));
+    const sel = forPrintFalse();
+    $('grid').innerHTML = `
+      <div class="plan-bar">
+        ${modeToggle()}
+        ขนาดห้อง กว้าง <input class="field" type="number" min="3" max="40" value="${R.cols}" data-room-size="cols" /> × ลึก <input class="field" type="number" min="3" max="40" value="${R.rows}" data-room-size="rows" /> ช่อง
+        <label class="check" style="margin:0"><input type="checkbox" data-room-autonum${L.autoNumber !== false ? ' checked' : ''} /> เรียงเลขโต๊ะตามตำแหน่ง</label>
+        <button class="btn${roomEditing ? ' on' : ''}" data-free="edit">${roomEditing ? '✓ เสร็จแก้ผังห้อง' : '✎ แก้ผังห้อง (เวที เสา บุฟเฟต์…)'}</button>
+        <button class="btn" data-add-table="vip">＋ โต๊ะ VIP</button>
+        <button class="btn" data-add-table="regular">＋ โต๊ะ</button>
+        <button class="btn" data-free="renumber" title="ไล่เลขจากแถวหน้าเวทีไปหลังห้อง ซ้ายไปขวา">เรียงเลขตอนนี้</button>
+        <button class="btn" data-free="reset" title="วางโต๊ะทั้งหมดใหม่ตามผังอัตโนมัติ">↺ เริ่มใหม่</button>
+      </div>
+      ${roomEditing ? `<div class="plan-bar palette">เพิ่มในห้อง: ${Object.entries(ITEM_TYPES).map(([k, v]) => `<button class="btn" data-add-item="${k}">＋ ${v.label}</button>`).join('')}
+        <span>· ลากเพื่อย้าย · แตะเพื่อแก้ชื่อ ขนาด หรือลบ</span></div>`
+        : '<div class="plan-bar"><span>แตะโต๊ะเพื่อจัดแขก · กดค้างแล้วลากโต๊ะไปวางช่องว่างช่องไหนก็ได้ (วางบนโต๊ะอื่น = สลับที่) · ลากออกไปวางในกล่องด้านล่างเพื่อเอาออกจากห้อง</span></div>'}
+      <div class="plan-scroll">${planMarkup(false)}</div>
+      <div class="tray" data-tray><div class="tray-title">โต๊ะที่ยังไม่ได้วางในห้อง (${unplaced.length}) — ลากเข้าไปวางในห้อง${unplaced.length ? '' : ' · ลากโต๊ะมาวางที่นี่เพื่อเอาออกจากห้อง'}</div>
+        <div class="tray-list">${unplaced.map((t) => planTable(t, sel.selPeople, sel.searching, false)).join('')}</div></div>`;
+    $('grid').classList.toggle('reorder', reorderMode);
+    $('grid').classList.toggle('placing', placing());
+    fitPlan();
+  }
+  function forPrintFalse() {
+    return { selPeople: [...selected].map(findGuest).filter(Boolean).reduce((s, g) => s + g.count, 0), searching: !!($('tableSearch').value.trim() || $('tableFilter').value) };
+  }
+  const modeToggle = () => `<div class="seg mode"><button data-mode="auto" class="${isFree() ? '' : 'active'}">ผังอัตโนมัติ</button><button data-mode="free" class="${isFree() ? 'active' : ''}">ผังห้องอิสระ</button></div>`;
   function renderPlan() {
+    if (isFree()) return renderFreePlan();
     const L = layoutOf();
     const reg = state.tableList.filter((t) => !t.vip);
     const leftN = Math.min(reg.length, L.left ?? Math.ceil(reg.length / 2));
@@ -1163,6 +1338,7 @@
     $('grid').classList.toggle('reorder', reorderMode);
     $('grid').innerHTML = `
       <div class="plan-bar">
+        ${modeToggle()}
         โต๊ะต่อแถว (ต่อฝั่ง) <input class="field" type="number" min="1" max="12" value="${cols}" data-layout="perRow" />
         ฝั่งซ้าย <input class="field" type="number" min="0" max="${reg.length}" value="${leftN}" data-layout="left" /> โต๊ะ
         <button class="btn" data-add-table="vip">＋ โต๊ะ VIP</button>
@@ -1183,6 +1359,23 @@
   }
   window.addEventListener('resize', () => { if (viewMode === 'plan') fitPlan(); });
   $('grid').addEventListener('change', (e) => {
+    const rs = e.target.closest('[data-room-size]');
+    if (rs) {
+      const R = roomOf(), v = Math.min(40, Math.max(3, parseInt(rs.value) || R[rs.dataset.roomSize]));
+      const next = { ...R, [rs.dataset.roomSize]: v };
+      const out = state.tableList.filter((t) => t.pos && inRoom(t.pos, R) && !inRoom(t.pos, next)).length;
+      if (out && !confirm(`ห้องเล็กลงแล้วจะมี ${out} โต๊ะหลุดออกนอกห้อง (ไปอยู่ในกล่อง "ยังไม่ได้วาง") ยืนยันไหม?`)) return renderGrid();
+      state.room = next;
+      if (autoNumber()) renumberByPosition();
+      persist(); render();
+      return;
+    }
+    if (e.target.matches('[data-room-autonum]')) {
+      state.layout = { ...layoutOf(), autoNumber: e.target.checked };
+      if (e.target.checked) renumberByPosition();
+      persist(); render();
+      return;
+    }
     const f = e.target.closest('[data-layout]');
     if (!f) return;
     const L = layoutOf(), v = parseInt(f.value);
@@ -1436,6 +1629,34 @@
   $('grid').addEventListener('click', (e) => {
     const add = e.target.closest('[data-add-table]');
     if (add) return addTable(add.dataset.addTable === 'vip');
+    const mode = e.target.closest('[data-mode]');
+    if (mode) return setLayoutMode(mode.dataset.mode);
+    const fr = e.target.closest('[data-free]');
+    if (fr) {
+      if (fr.dataset.free === 'edit') { roomEditing = !roomEditing; return renderGrid(); }
+      if (fr.dataset.free === 'renumber') { renumberByPosition(); persist(); render(); return toast('เรียงเลขโต๊ะตามตำแหน่งแล้ว'); }
+      if (fr.dataset.free === 'reset') {
+        if (!confirm('วางโต๊ะทั้งหมดใหม่ตามผังอัตโนมัติ? (สิ่งของในห้องที่เพิ่มไว้จะถูกแทนที่ · กดย้อนกลับได้)')) return;
+        initFreeLayout(); persist(); render(); return;
+      }
+    }
+    const addItem = e.target.closest('[data-add-item]');
+    if (addItem) {
+      const type = addItem.dataset.addItem, def = ITEM_TYPES[type], R = roomOf();
+      // Prefer an empty area big enough for the item; otherwise add a row at the back
+      const w = Math.min(def.w, R.cols), h = def.h;
+      const free = (x, y) => { for (let j = y; j < y + h; j++) for (let i = x; i < x + w; i++) if (tableAtCell(i, j) || itemAtCell(i, j)) return false; return true; };
+      let spot = null;
+      for (let y = 0; y + h <= R.rows && !spot; y++) for (let x = 0; x + w <= R.cols && !spot; x++) if (free(x, y)) spot = { x, y };
+      const rows = spot ? R.rows : R.rows + h;
+      if (!spot) spot = { x: 0, y: R.rows };
+      const it = { id: tid(), type, x: spot.x, y: spot.y, w, h, label: def.label };
+      state.room = { ...R, rows, items: [...R.items, it] };
+      persist(); render();
+      return toast(`เพิ่ม${def.label}แล้ว — ลากไปวางตำแหน่งที่ต้องการ`);
+    }
+    const itemEl = e.target.closest('[data-item]');
+    if (itemEl && roomEditing) { if (!swallowClick) openItemModal(itemEl.dataset.item); return; }
     const sideAdd = e.target.closest('[data-side-drop]');
     if (sideAdd) return addTableToSide(sideAdd.dataset.sideDrop);
     const slot = e.target.closest('[data-slot]');
@@ -1634,7 +1855,7 @@
       return;
     }
     if (e.target.closest('button, input, select, a')) return;
-    const card = e.target.closest('#grid [data-table]');
+    const card = e.target.closest('#grid [data-table]') || (roomEditing && e.target.closest('#grid [data-item]'));
     if (!card) return;
     const touch = e.pointerType !== 'mouse';
     tpending = { card, x: e.clientX, y: e.clientY, armed: !touch };
@@ -1659,7 +1880,8 @@
     ghost.classList.add('drag-ghost');
     ghost.style.width = r.width + 'px';
     document.body.appendChild(ghost);
-    tdrag = { id: card.dataset.table, ghost, dx: x - r.left, dy: y - r.top, over: null, x, y };
+    const kind = card.dataset.item ? 'item' : 'table';
+    tdrag = { id: card.dataset.item || card.dataset.table, kind, ghost, dx: x - r.left, dy: y - r.top, over: null, x, y, w: r.width, h: r.height };
     card.style.opacity = '0.35';
     moveGhost(x, y);
     autoScroll();
@@ -1668,6 +1890,7 @@
     tdrag.x = x; tdrag.y = y;
     tdrag.ghost.style.left = x - tdrag.dx + 'px';
     tdrag.ghost.style.top = y - tdrag.dy + 'px';
+    if (viewMode === 'plan' && isFree()) return moveOverRoom(x, y);
     const over = document.elementFromPoint(x, y)?.closest('#grid [data-table], #grid [data-side-drop]');
     const id = !over ? null : over.dataset.sideDrop ? 'side:' + over.dataset.sideDrop : over.dataset.table !== tdrag.id ? over.dataset.table : null;
     if (id !== tdrag.over) {
@@ -1675,6 +1898,38 @@
       if (over && id) over.classList.add('drop-ok');
       tdrag.over = id;
     }
+  }
+  // Free room: work out which cell is under the pointer (or the tray) and outline it
+  function moveOverRoom(x, y) {
+    const room = document.querySelector('#grid [data-room]'), tray = document.querySelector('#grid [data-tray]');
+    const R = roomOf();
+    let hl = room?.querySelector('.cell-hl');
+    tray?.classList.remove('drop-ok');
+    tdrag.over = null;
+    if (!room) return;
+    const rr = room.getBoundingClientRect(), cw = rr.width / R.cols, ch = rr.height / R.rows;
+    // Items are dragged by their top-left corner; tables by the point under the finger
+    const px = tdrag.kind === 'item' ? x - tdrag.dx + cw / 2 : x, py = tdrag.kind === 'item' ? y - tdrag.dy + ch / 2 : y;
+    const cx = Math.floor((px - rr.left) / cw), cy = Math.floor((py - rr.top) / ch);
+    const inside = cx >= 0 && cy >= 0 && cx < R.cols && cy < R.rows;
+    if (!inside) {
+      hl?.remove();
+      if (tdrag.kind === 'table' && document.elementFromPoint(x, y)?.closest('[data-tray]')) { tray.classList.add('drop-ok'); tdrag.over = 'tray'; }
+      return;
+    }
+    if (!hl) { hl = document.createElement('div'); hl.className = 'cell-hl'; room.appendChild(hl); }
+    let w = 1, h = 1, bad = false;
+    if (tdrag.kind === 'item') {
+      const it = R.items.find((i) => i.id === tdrag.id);
+      w = it?.w || 1; h = it?.h || 1;
+      hl.classList.add('rect');
+    } else bad = !!itemAtCell(cx, cy);
+    const zx = CELL / cw;   // the room may be zoomed to fit the screen
+    hl.style.left = cx * CELL + 'px'; hl.style.top = cy * CELL + 'px';
+    hl.style.width = w * CELL - 4 + 'px'; hl.style.height = h * CELL - 4 + 'px';
+    hl.style.margin = '2px';
+    hl.classList.toggle('bad', bad);
+    tdrag.over = { x: cx, y: cy, zx };
   }
   // Scroll the table area while dragging near its top/bottom edge
   function autoScroll() {
@@ -1697,9 +1952,25 @@
     if (!tdrag) return;
     swallowClick = true;   // the click that follows a drag is not a tap
     setTimeout(() => (swallowClick = false), 50);
-    const { id, over, ghost } = tdrag;
+    const { id, over, ghost, kind } = tdrag;
     tdrag = null;
     ghost.remove();
+    if (viewMode === 'plan' && isFree()) {
+      if (!drop || !over) return renderGrid();
+      if (kind === 'item') {
+        const R = roomOf();
+        state.room = { ...R, items: R.items.map((it) => it.id !== id ? it : { ...it, x: Math.min(over.x, R.cols - it.w), y: Math.min(over.y, R.rows - it.h) }) };
+        evictUnderItems();
+        if (autoNumber()) renumberByPosition();
+        persist(); return render();
+      }
+      if (over === 'tray') {
+        const t = tableById(id);
+        if (t) { delete t.pos; if (autoNumber()) renumberByPosition(); persist(); render(); toast(`เอา${labelOf(id)}ออกจากห้องแล้ว`); }
+        return;
+      }
+      return placeTable(id, over);
+    }
     if (drop && over?.startsWith('side:')) moveTableToSide(id, over.slice(5));
     else if (drop && over) swapTables(id, over);
     else renderGrid();
@@ -2085,8 +2356,10 @@
   }
   function addTable(vip) {
     const t = { id: tid(), vip };
+    if (isFree()) t.pos = firstFreeCell();
     state.tableList.push(t);
     sortTables();
+    if (isFree() && autoNumber()) renumberByPosition();
     persist(); render();
     toast(`เพิ่ม${labelOf(t.id)} แล้ว`);
   }
@@ -2272,6 +2545,7 @@
     const t = tableById(id);
     if (!t) return '';
     if (t.vip) return 'VIP';
+    if (isFree()) return inRoom(t.pos) ? (t.pos.x < roomOf().cols / 2 ? 'ซ้าย' : 'ขวา') : 'ยังไม่วาง';
     const i = state.tableList.filter((x) => !x.vip).indexOf(t);
     return i < leftCount() ? 'ซ้าย' : 'ขวา';
   }
@@ -2463,6 +2737,37 @@
   }
   $('dlExcel').addEventListener('click', (e) => withBusy(e.currentTarget, buildExcel));
   $('dlWord').addEventListener('click', (e) => withBusy(e.currentTarget, buildWord));
+
+  // ---------- room item editor ----------
+  let editingItem = null;
+  function openItemModal(id) {
+    editingItem = roomOf().items.find((x) => x.id === id);
+    if (!editingItem) return;
+    $('imTitle').textContent = `แก้${ITEM_TYPES[editingItem.type]?.label || 'สิ่งของ'}`;
+    $('imLabel').value = editingItem.label || '';
+    $('imW').value = editingItem.w;
+    $('imH').value = editingItem.h;
+    openModal('itemModal');
+  }
+  $('imSave').addEventListener('click', () => {
+    if (!editingItem) return;
+    const R = roomOf();
+    const items = R.items.map((x) => x.id !== editingItem.id ? x : {
+      ...x, label: $('imLabel').value.trim(),
+      w: Math.min(R.cols, Math.max(1, parseInt($('imW').value) || x.w)),
+      h: Math.min(R.rows, Math.max(1, parseInt($('imH').value) || x.h)),
+    });
+    state.room = { ...R, items };
+    evictUnderItems();
+    if (autoNumber()) renumberByPosition();
+    closeModal('itemModal'); persist(); render();
+  });
+  $('imDelete').addEventListener('click', () => {
+    if (!editingItem) return;
+    const R = roomOf();
+    state.room = { ...R, items: R.items.filter((x) => x.id !== editingItem.id) };
+    closeModal('itemModal'); persist(); render();
+  });
 
   // ---------- settings ----------
   $('settingsBtn').addEventListener('click', () => {
