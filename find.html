@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
   <meta name="robots" content="noindex, nofollow" />
   <meta name="theme-color" content="#faf8f5" />
-  <title>ค้นหาโต๊ะของคุณ — Madchimapon &amp; Sirathee</title>
+  <title>ค้นหาโต๊ะของท่าน — Madchimapon &amp; Sirathee</title>
   <link rel="icon" type="image/png" href="assets/logo-sm.png" />
   <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,500;1,400&family=Sarabun:wght@300;400;500;600&display=swap" rel="stylesheet" />
   <style>
@@ -185,15 +185,15 @@
       <div class="names">Madchimapon &amp; Sirathee</div>
       <div class="date">20 December 2026 · Taksila Hotel</div>
       <div class="divider"></div>
-      <h1>ค้นหาโต๊ะของคุณ<em>Find your table</em></h1>
-      <p class="lead">พิมพ์ชื่อ ชื่อเล่น หรือชื่อกลุ่ม / หน่วยงานของคุณ</p>
+      <h1>ค้นหาโต๊ะของท่าน<em>Find your table</em></h1>
+      <p class="lead">พิมพ์ชื่อ ชื่อเล่น หรือชื่อกลุ่ม / หน่วยงานของท่าน</p>
       <p class="kiosk-tag" id="kioskTag" hidden>จุดค้นหาโต๊ะ · หน้าจอจะล้างเองหลังใช้งาน</p>
     </header>
 
     <div class="search">
       <div class="field" id="field">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
-        <input id="q" type="search" placeholder="พิมพ์ชื่อของคุณ…" autocomplete="off" enterkeyhint="search" aria-label="ค้นหาชื่อ" />
+        <input id="q" type="search" placeholder="พิมพ์ชื่อของท่าน…" autocomplete="off" enterkeyhint="search" aria-label="ค้นหาชื่อ" />
         <button class="clear" id="clear" aria-label="ล้าง">✕</button>
       </div>
     </div>
@@ -222,7 +222,7 @@
   const setMe = (id) => { if (KIOSK) return; try { id ? localStorage.setItem(ME_KEY, id) : localStorage.removeItem(ME_KEY); } catch {} };
   const hhmm = (iso) => new Date(iso).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' });
 
-  const IDLE = `<span class="orn">✧ ✧ ✧</span>ยินดีต้อนรับสู่งานของเรา<br>เริ่มพิมพ์ชื่อด้านบนเพื่อดูโต๊ะของคุณ
+  const IDLE = `<span class="orn">✧ ✧ ✧</span>เริ่มพิมพ์ชื่อด้านบนเพื่อดูโต๊ะของท่าน<br>
     <div class="hint-chips"><span>ชื่อเล่น</span><span>ชื่อ-นามสกุล</span><span>ชื่อหน่วยงาน</span></div>`;
 
   // Same numbering as the seating planner: VIP tables and regular tables are each
@@ -368,7 +368,7 @@
         <button class="linkish" data-ci="undo">ยกเลิกเช็กอิน</button>`;
     }
     return `<button class="ci-btn" data-ci="in">✓ ฉันได้ที่นั่งแล้ว</button>
-      <div class="ci-note">กดเมื่อถึงงานและนั่งที่โต๊ะแล้ว${KIOSK || getMe() === g.id ? '' : ' · ระบบจะจำชื่อคุณไว้ในเครื่องนี้'}</div>`;
+      <div class="ci-note">กดเมื่อถึงงานและนั่งที่โต๊ะแล้ว${KIOSK || getMe() === g.id ? '' : ' · ระบบจะจำชื่อท่านไว้ในเครื่องนี้'}</div>`;
   }
   $('detail').addEventListener('click', async (e) => {
     const b = e.target.closest('[data-ci]');
@@ -394,7 +394,7 @@
     if (!g) return;
     $('status').innerHTML = `<div class="welcome">ยินดีต้อนรับกลับ ✧</div>`;
     show(g, false);
-    $('detail').insertAdjacentHTML('beforeend', '<div style="text-align:center"><button class="linkish" data-ci="forget">ไม่ใช่คุณ? ค้นหาชื่ออื่น</button></div>');
+    $('detail').insertAdjacentHTML('beforeend', '<div style="text-align:center"><button class="linkish" data-ci="forget">ไม่ใช่ท่าน? ค้นหาชื่ออื่น</button></div>');
   }
 
   let timer;
