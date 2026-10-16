@@ -141,6 +141,8 @@
     #tableHint { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; }
     #tableHint .sep { width: 1px; height: 18px; background: var(--border); margin: 0 4px; }
     .hint label { display: inline-flex; align-items: center; gap: 4px; margin-left: 6px; }
+    .table-card.lifted, .ft.lifted .ft-circle { box-shadow: 0 0 0 3px var(--accent), 0 8px 20px rgba(0,0,0,0.15); }
+    .table-card, .ft { -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; }
     .drag-ghost { position: fixed; z-index: 70; pointer-events: none; opacity: 0.9; box-shadow: 0 8px 24px rgba(0,0,0,0.18); transform: rotate(1.5deg); }
     .btn.on { background: var(--accent); border-color: var(--accent); color: white; }
     .stat.arrived .stat-value { color: var(--ok); }
@@ -1142,7 +1144,7 @@
         ฝั่งซ้าย <input class="field" type="number" min="0" max="${reg.length}" value="${leftN}" data-layout="left" /> โต๊ะ
         <button class="btn" data-add-table="vip">＋ โต๊ะ VIP</button>
         <button class="btn" data-add-table="regular">＋ โต๊ะทั่วไป</button>
-        <span>แตะโต๊ะเพื่อจัดแขก · ใช้ "เลือกหลายโต๊ะ" เพื่อย้าย ลบ หรือล้างหลายโต๊ะพร้อมกัน</span>
+        <span>แตะโต๊ะเพื่อจัดแขก · กดค้างแล้วลากโต๊ะไปวางบนอีกโต๊ะเพื่อสลับตำแหน่ง · ใช้ "เลือกหลายโต๊ะ" เพื่อย้าย ลบ หรือล้างหลายโต๊ะพร้อมกัน</span>
       </div>
       <div class="plan-scroll">${planMarkup(false)}</div>`;
     $('grid').classList.toggle('placing', placing());
@@ -1575,13 +1577,38 @@
   // Pointer-based drag (works with finger on iPad as well as mouse). A drag starts
   // only after the pointer moves a little, so a plain tap still picks a table.
   let tdrag = null, tpending = null, swallowClick = false;
+  // Outside multi-select mode any table — empty or not — can be dragged too:
+  // with a mouse straight away, by touch after a short press-and-hold so that a
+  // normal swipe still scrolls the page.
+  const HOLD_MS = 280;
   $('grid').addEventListener('pointerdown', (e) => {
-    const h = e.target.closest('[data-handle]');
-    if (!h || !reorderMode) return;
-    tpending = { card: h.closest('[data-table]'), x: e.clientX, y: e.clientY };
+    if (e.button > 0) return;
+    if (reorderMode) {
+      const h = e.target.closest('[data-handle]');
+      if (h) tpending = { card: h.closest('[data-table]'), x: e.clientX, y: e.clientY, armed: true };
+      return;
+    }
+    if (e.target.closest('button, input, select, a')) return;
+    const card = e.target.closest('#grid [data-table]');
+    if (!card) return;
+    const touch = e.pointerType !== 'mouse';
+    tpending = { card, x: e.clientX, y: e.clientY, armed: !touch };
+    if (touch) {
+      tpending.timer = setTimeout(() => {
+        if (!tpending || tpending.card !== card) return;
+        tpending.armed = true;
+        card.classList.add('lifted');
+        navigator.vibrate?.(15);
+      }, HOLD_MS);
+    }
   });
+  // Once a touch drag is armed, stop the page from scrolling under the finger
+  document.addEventListener('touchmove', (e) => { if (tdrag || tpending?.armed) e.preventDefault(); }, { passive: false });
+  document.addEventListener('contextmenu', (e) => { if (tpending?.armed || tdrag) e.preventDefault(); });
   function startTableDrag(x, y) {
     const card = tpending.card, r = card.getBoundingClientRect();
+    clearTimeout(tpending.timer);
+    card.classList.remove('lifted');
     tpending = null;
     const ghost = card.cloneNode(true);
     ghost.classList.add('drag-ghost');
@@ -1613,10 +1640,14 @@
     requestAnimationFrame(autoScroll);
   }
   window.addEventListener('pointermove', (e) => {
-    if (tpending && Math.hypot(e.clientX - tpending.x, e.clientY - tpending.y) > 6) startTableDrag(e.clientX, e.clientY);
+    if (tpending && Math.hypot(e.clientX - tpending.x, e.clientY - tpending.y) > 6) {
+      if (tpending.armed) startTableDrag(e.clientX, e.clientY);
+      else { clearTimeout(tpending.timer); tpending = null; }   // a swipe: let it scroll
+    }
     if (tdrag) { e.preventDefault(); moveGhost(e.clientX, e.clientY); }
   }, { passive: false });
   function endTableDrag(drop) {
+    if (tpending) { clearTimeout(tpending.timer); tpending.card.classList.remove('lifted'); }
     tpending = null;
     if (!tdrag) return;
     swallowClick = true;   // the click that follows a drag is not a tap
