@@ -238,24 +238,68 @@
     @media print {
       body { background: white; }
       #app, .modal-bg, .toast { display: none !important; }
-      @page { size: A4 landscape; margin: 10mm; }
-      #printArea { display: block; font-size: 10pt; }
+      @page { size: A4 landscape; margin: 9mm 10mm; }
+      #printArea { display: block; font-size: 10pt; color: #2c2c2c; font-family: 'Sarabun', sans-serif; }
       #printArea * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-      .print-plan { break-after: page; }
-      .print-qr { break-after: page; text-align: center; padding-top: 10mm; }
-      .print-qr h1 { font-size: 30pt !important; margin-bottom: 4mm !important; }
-      .print-qr p { font-size: 16pt; color: #555; margin-bottom: 8mm; }
-      .print-qr .qr svg { width: 110mm; height: 110mm; }
-      .print-qr .url { font-size: 13pt; margin-top: 6mm; color: #333; }
-      .print-plan .plan { margin: 0 auto; }
-      .print-plan .ft-name { color: #444; }
-      #printArea h1 { font-family: 'Playfair Display', serif; font-size: 16pt; margin-bottom: 10px; }
-      .print-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
-      .print-table { border: 1px solid #999; padding: 6px 8px; break-inside: avoid; }
-      .print-table b { display: block; border-bottom: 1px solid #ccc; margin-bottom: 3px; }
-      .print-break { page-break-before: always; }
-      .print-list { columns: 4; column-gap: 20px; }
-      .print-list div { break-inside: avoid; padding: 1px 0; }
+      .pp { break-after: page; }
+      .pp:last-child { break-after: auto; }
+      /* Page header in the wedding site's style: monogram, names, date, title */
+      .ph { display: flex; align-items: center; gap: 12px; padding-bottom: 7px; margin-bottom: 10px; border-bottom: 1px solid #e0d5c8; position: relative; }
+      .ph::after { content: ''; position: absolute; left: 50%; bottom: -3px; width: 5px; height: 5px; margin-left: -2.5px; border-radius: 50%; background: #8b6e5a; }
+      .ph img { height: 40px; width: auto; }
+      .ph-names { font-family: 'Playfair Display', serif; font-size: 11.5pt; letter-spacing: 0.14em; text-transform: uppercase; color: #5a4128; }
+      .ph-sub { font-size: 7.5pt; letter-spacing: 0.28em; text-transform: uppercase; color: #7a7268; margin-top: 1px; }
+      .ph-right { margin-left: auto; text-align: right; }
+      .ph-title { text-align: right; font-family: 'Playfair Display', serif; font-size: 17pt; color: #2c2c2c; line-height: 1.1; }
+      .ph-title small { display: block; font-size: 8.5pt; font-style: italic; color: #8b6e5a; letter-spacing: 0.06em; }
+      .ph-meta { font-size: 8pt; color: #7a7268; text-align: right; margin-top: 2px; }
+
+      /* Floor plan */
+      .pp-plan .plan { margin: 0 auto; }
+      .pp-plan .stage { background: linear-gradient(180deg, #efe6da, #e6dccd); color: #6b5144; border: none; border-radius: 4px 4px 14px 14px; margin-left: 15%; margin-right: 15%; }
+      .pp-plan .ft-name { color: #555; }
+      .pp-plan .plan-side-label { color: #6b5144; }
+
+      /* Guests by table */
+      .pt-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 7px; align-items: start; }
+      .pt { border: 1px solid #e0d5c8; border-top: 3px solid #8b6e5a; border-radius: 5px; padding: 5px 8px 6px; break-inside: avoid; background: #fff; }
+      .pt.vip { border-top-color: #b8933f; background: #fffcf5; }
+      .pt-head { display: flex; align-items: baseline; gap: 6px; border-bottom: 1px solid #f0ebe3; padding-bottom: 3px; margin-bottom: 3px; }
+      .pt-no { font-family: 'Playfair Display', serif; font-size: 14pt; color: #6b5144; line-height: 1; }
+      .pt.vip .pt-no { color: #a07a2c; font-size: 11pt; }
+      .pt-name { font-size: 7.5pt; color: #7a7268; flex: 1; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+      .pt-cap { font-size: 7.5pt; color: #8b6e5a; font-weight: 600; }
+      .pt div.g { font-size: 8.5pt; line-height: 1.45; display: flex; gap: 4px; }
+      .pt div.g span:first-child { flex: 1; }
+      .pt div.g .x { color: #8b6e5a; font-size: 7.5pt; }
+
+      /* Guest → table list with dotted leaders */
+      .gl { columns: 3; column-gap: 9mm; column-rule: 1px solid #f0ebe3; }
+      .gl-row { display: flex; align-items: baseline; gap: 4px; break-inside: avoid; font-size: 9pt; line-height: 1.55; }
+      .gl-row .n { max-width: 80%; }
+      .gl-row .d { flex: 1; border-bottom: 1px dotted #c9bba9; transform: translateY(-3px); min-width: 8px; }
+      .gl-row .t { font-family: 'Playfair Display', serif; color: #6b5144; white-space: nowrap; }
+      .gl-row .t.vip { color: #a07a2c; }
+      .gl-row .t.none { font-family: 'Sarabun', sans-serif; color: #b0a698; font-size: 8pt; }
+      .gl-letter { font-family: 'Playfair Display', serif; color: #8b6e5a; font-size: 11pt; margin: 4px 0 1px; break-after: avoid; border-bottom: 1px solid #f0ebe3; }
+
+      /* QR sign for the entrance */
+      .qr-sign { height: 184mm; border: 1px solid #c9b49c; border-radius: 6mm; position: relative; display: flex; align-items: center; justify-content: center; gap: 16mm; padding: 10mm 16mm; }
+      .qr-sign::before { content: ''; position: absolute; inset: 3mm; border: 0.6mm solid #e6dccd; border-radius: 4mm; }
+      .qr-text { text-align: center; max-width: 120mm; position: relative; }
+      .qr-text img { width: 46mm; height: auto; }
+      .qr-names { font-family: 'Playfair Display', serif; font-size: 15pt; letter-spacing: 0.16em; text-transform: uppercase; color: #5a4128; margin-top: 3mm; }
+      .qr-date { font-size: 9pt; letter-spacing: 0.3em; text-transform: uppercase; color: #7a7268; margin-top: 1.5mm; }
+      .qr-div { width: 16mm; height: 1px; background: #8b6e5a; margin: 7mm auto; position: relative; }
+      .qr-div::before, .qr-div::after { content: ''; position: absolute; top: 50%; width: 1.4mm; height: 1.4mm; margin-top: -0.7mm; border-radius: 50%; background: #8b6e5a; }
+      .qr-div::before { left: -4mm; } .qr-div::after { right: -4mm; }
+      .qr-title { font-family: 'Playfair Display', serif; font-size: 34pt; line-height: 1.15; color: #2c2c2c; }
+      .qr-title small { display: block; font-size: 15pt; font-style: italic; color: #8b6e5a; margin-top: 2mm; }
+      .qr-how { font-size: 13pt; color: #5a4128; margin-top: 7mm; line-height: 1.7; }
+      .qr-box { position: relative; text-align: center; }
+      .qr-box .qr { background: #fff; padding: 5mm; border: 1px solid #e0d5c8; border-radius: 4mm; }
+      .qr-box .qr svg { width: 92mm; height: 92mm; display: block; }
+      .qr-box .url { font-size: 9pt; color: #7a7268; margin-top: 3mm; letter-spacing: 0.04em; }
     }
   </style>
 </head>
@@ -1965,36 +2009,54 @@
         const qr = qrcode(0, 'M');
         qr.addData(FIND_URL());
         qr.make();
-        qrHtml = `<div class="print-qr"><h1>ค้นหาโต๊ะของคุณ</h1><p>สแกน QR แล้วพิมพ์ชื่อของคุณ</p><div class="qr">${qr.createSvgTag({ cellSize: 8, margin: 2, scalable: true })}</div><div class="url">${esc(FIND_URL())}</div></div>`;
+        qrHtml = `<div class="pp"><div class="qr-sign">
+          <div class="qr-text"><img src="assets/logo-sm.png" alt="" /><div class="qr-names">Madchimapon &amp; Sirathee</div><div class="qr-date">20 December 2026</div>
+            <div class="qr-div"></div><div class="qr-title">ค้นหาโต๊ะของคุณ<small>Find your table</small></div>
+            <div class="qr-how">สแกน QR ด้วยกล้องมือถือ<br>แล้วพิมพ์ชื่อของคุณ</div></div>
+          <div class="qr-box"><div class="qr">${qr.createSvgTag({ cellSize: 8, margin: 1, scalable: true })}</div><div class="url">${esc(FIND_URL().replace(/^https?:\/\//, ''))}</div></div>
+        </div></div>`;
       } catch { return toast('โหลดตัวสร้าง QR ไม่ได้ — ตรวจการเชื่อมต่ออินเทอร์เน็ต'); }
     }
-    const title = `<h1>ผังที่นั่งงานแต่ง · ${totalPeople()} คน · ${state.tableList.length} โต๊ะ</h1>`;
+    const people = totalPeople(), seated = state.guests.filter((g) => g.table).reduce((t, g) => t + g.count, 0);
+    const head = (th, en, meta) => `<div class="ph"><img src="assets/logo-sm.png" alt="" /><div><div class="ph-names">Madchimapon &amp; Sirathee</div><div class="ph-sub">20 December 2026 · Taksila Hotel</div></div><div class="ph-right"><div class="ph-title">${th}<small>${en}</small></div>${meta ? `<div class="ph-meta">${meta}</div>` : ''}</div></div>`;
     let html = qrHtml;
-    if ($('prPlan').checked) html += `<div class="print-plan">${title}<div class="print-plan-box">${planMarkup(true)}</div></div>`;
+    if ($('prPlan').checked) {
+      html += `<div class="pp pp-plan">${head('ผังห้องจัดเลี้ยง', 'Floor Plan', `${state.tableList.length} โต๊ะ · ${seated}/${people} คน`)}<div class="print-plan-box">${planMarkup(true)}</div></div>`;
+    }
     if ($('prTables').checked) {
-      html += `<h1>รายชื่อแขกแต่ละโต๊ะ</h1><div class="print-grid">`;
+      html += `<div class="pp">${head('รายชื่อแขกแต่ละโต๊ะ', 'Guests by Table', `${seated} คน`)}<div class="pt-grid">`;
       for (const t of state.tableList) {
         const n = t.id, gs = guestsAt(n);
         if (!gs.length) continue;
-        html += `<div class="print-table"><b>${labelOf(n)}${nameOf(n) ? ' · ' + esc(nameOf(n)) : ''} (${usedAt(n)}/${capOf(n)})</b>${gs.map((g) => `<div>${esc(g.name)}${g.count > 1 ? ` ×${g.count}` : ''}</div>`).join('')}</div>`;
+        html += `<div class="pt${t.vip ? ' vip' : ''}"><div class="pt-head"><span class="pt-no">${esc(shortLabel(n))}</span><span class="pt-name">${esc(nameOf(n))}</span><span class="pt-cap">${usedAt(n)}/${capOf(n)}</span></div>`
+          + gs.map((g) => `<div class="g"><span>${esc(g.name)}</span>${g.count > 1 ? `<span class="x">×${g.count}</span>` : ''}</div>`).join('') + '</div>';
       }
-      html += '</div>';
+      html += '</div></div>';
     }
     if ($('prGuests').checked) {
-      html += `<h1 class="${$('prTables').checked ? 'print-break' : ''}">รายชื่อแขก → เลขโต๊ะ</h1><div class="print-list">`;
-      [...state.guests].sort((a, b) => a.name.localeCompare(b.name, 'th'))
-        .forEach((g) => (html += `<div>${esc(g.name)} — <b>${g.table ? labelOf(g.table) : 'ยังไม่จัด'}</b></div>`));
-      html += '</div>';
+      // Alphabetical, with a heading per first consonant (leading vowels skipped)
+      const first = (name) => (name.replace(/^[\sเ-ไ]+/, '')[0] || '#').toUpperCase();
+      let rows = '', last = '';
+      [...state.guests].sort((a, b) => a.name.localeCompare(b.name, 'th')).forEach((g) => {
+        const f = first(g.name);
+        if (f !== last) { rows += `<div class="gl-letter">${esc(f)}</div>`; last = f; }
+        const t = g.table ? tableById(g.table) : null;
+        rows += `<div class="gl-row"><span class="n">${esc(g.name)}</span><span class="d"></span><span class="t${t ? (t.vip ? ' vip' : '') : ' none'}">${t ? esc(labelOf(g.table)) : 'ติดต่อหน้างาน'}</span></div>`;
+      });
+      html += `<div class="pp">${head('ค้นหาโต๊ะจากชื่อ', 'Find Your Table', 'เรียงตามตัวอักษร')}<div class="gl">${rows}</div></div>`;
     }
     if (!html) return toast('เลือกอย่างน้อย 1 อย่าง');
     closeModal('printModal');
     const area = $('printArea');
     area.innerHTML = html;
+    // The monogram and web fonts must be loaded or they print blank
+    await Promise.all([...area.querySelectorAll('img')].map((i) => (i.complete ? 0 : new Promise((r) => { i.onload = i.onerror = r; }))));
+    await document.fonts?.ready;
     // Scale the room to one landscape A4 page (~1050 × 690 px printable)
     const box = area.querySelector('.print-plan-box .plan');
     if (box) {
       area.style.cssText = 'display:block;position:absolute;left:-10000px;top:0;width:1050px';
-      const z = Math.min(1, 1040 / box.scrollWidth, 640 / box.scrollHeight);
+      const z = Math.min(1, 1040 / box.scrollWidth, 600 / box.scrollHeight);
       area.style.cssText = '';
       box.style.zoom = z;
     }
