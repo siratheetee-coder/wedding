@@ -937,8 +937,8 @@
     }
     const selPeople = [...selected].map(findGuest).filter(Boolean).reduce((s, g) => s + g.count, 0);
     $('selFoot').innerHTML = selected.size
-      ? `เลือก ${selected.size} รายการ (${selPeople} คน) — แตะโต๊ะเพื่อจัดลง · <a href="#" id="clearSel">ยกเลิก</a>`
-      : 'ลากชื่อไปวางบนโต๊ะ หรือแตะเลือกชื่อแล้วแตะโต๊ะ';
+      ? `เลือก ${selected.size} รายการ (${selPeople} คน) — แตะโต๊ะเพื่อจัดลง · <a href="#" id="selAllShown">เลือกทั้งหมดที่แสดง</a> · <a href="#" id="clearSel">ยกเลิก</a>`
+      : 'ลากชื่อไปวางบนโต๊ะ หรือแตะเลือกชื่อแล้วแตะโต๊ะ · กด Shift ค้างเพื่อเลือกเป็นช่วง';
     const from = [...new Set([...selected].map(findGuest).filter((g) => g && g.table).map((g) => g.table))];
     $('tableHint').innerHTML = reorderMode
       ? reorderHint()
@@ -1230,12 +1230,27 @@
     const row = e.target.closest('.guest');
     if (!row) return;
     const id = row.dataset.id;
-    selected.has(id) ? selected.delete(id) : selected.add(id);
+    // Shift+click selects everything between the last clicked row and this one
+    const shown = filteredGuests().map((g) => g.id);
+    const a = shown.indexOf(lastGuestClick), b = shown.indexOf(id);
+    if (e.shiftKey && a >= 0 && b >= 0) {
+      shown.slice(Math.min(a, b), Math.max(a, b) + 1).forEach((x) => selected.add(x));
+      window.getSelection()?.removeAllRanges();
+    } else {
+      selected.has(id) ? selected.delete(id) : selected.add(id);
+    }
+    lastGuestClick = id;
     renderGuestList();
     renderGrid();
   });
+  let lastGuestClick = null;
   $('selFoot').addEventListener('click', (e) => {
     if (e.target.id === 'clearSel') { e.preventDefault(); selected.clear(); renderGuestList(); renderGrid(); }
+    if (e.target.id === 'selAllShown') {
+      e.preventDefault();
+      filteredGuests().forEach((g) => selected.add(g.id));
+      renderGuestList(); renderGrid();
+    }
   });
 
   let dragIds = [];
@@ -1286,7 +1301,19 @@
     const n = card.dataset.table;
     if (reorderMode) {
       if (!placing()) {
-        reorderSel = reorderSel.includes(n) ? reorderSel.filter((x) => x !== n) : [...reorderSel, n];
+        // Shift+click (or "select a range" on a tablet) takes every table in between
+        const order = state.tableList.map((t) => t.id);
+        const a = order.indexOf(lastTablePick), b = order.indexOf(n);
+        const anchored = lastTablePick && reorderSel.includes(lastTablePick);
+        if ((e.shiftKey || (rangeMode && anchored)) && a >= 0 && b >= 0) {
+          order.slice(Math.min(a, b), Math.max(a, b) + 1).forEach((x) => { if (!reorderSel.includes(x)) reorderSel.push(x); });
+          rangeMode = false;
+          window.getSelection()?.removeAllRanges();
+        } else {
+          if (rangeMode) { if (!reorderSel.includes(n)) reorderSel.push(n); }
+          else reorderSel = reorderSel.includes(n) ? reorderSel.filter((x) => x !== n) : [...reorderSel, n];
+        }
+        lastTablePick = n;
         return render();
       }
       if (reorderSel.includes(n)) return toast('แตะโต๊ะอื่นที่ไม่ได้เลือก เพื่อวางไว้ก่อนโต๊ะนั้น');
@@ -1304,6 +1331,7 @@
   // Reorder mode: tap tables to select several, then "move" and tap the table they
   // should go in front of (or an end slot). Nothing gets swapped out; the rest shift.
   let reorderMode = false, reorderSel = [], reorderStep = 'pick', placeSwap = false;
+  let lastTablePick = null, rangeMode = false;
   const placing = () => reorderMode && reorderStep === 'place' && reorderSel.length > 0;
   const endSlot = (kind) => (placing() ? `<div class="end-slot" data-slot="${kind}">วางท้ายสุด${kind === 'vip' ? '<br>ของ VIP' : ''}</div>` : '');
   function reorderHint() {
@@ -1313,8 +1341,8 @@
         + (n === 1 ? ` <label><input type="checkbox" data-ro="swap"${placeSwap ? ' checked' : ''} /> สลับที่แทน</label>` : '')
         + ` <button class="btn" data-ro="back">ยกเลิก</button>`;
     }
-    const quick = `<button class="btn" data-ro="all">เลือกทุกโต๊ะที่แสดง</button><button class="btn" data-ro="empty">เลือกโต๊ะว่าง</button>`;
-    if (!n) return `<b>เลือกหลายโต๊ะ:</b> แตะโต๊ะเพื่อเลือก · ลาก ⠿ ไปวางบนอีกโต๊ะเพื่อสลับ 2 โต๊ะ ${quick}`;
+    const quick = `<button class="btn${rangeMode ? ' on' : ''}" data-ro="range">${rangeMode ? (lastTablePick && reorderSel.includes(lastTablePick) ? 'แตะโต๊ะสุดท้ายของช่วง…' : 'แตะโต๊ะแรกของช่วง…') : 'เลือกเป็นช่วง'}</button><button class="btn" data-ro="all">เลือกทุกโต๊ะที่แสดง</button><button class="btn" data-ro="empty">เลือกโต๊ะว่าง</button>`;
+    if (!n) return `<b>เลือกหลายโต๊ะ:</b> แตะโต๊ะเพื่อเลือก (กด Shift ค้างเพื่อเลือกเป็นช่วง) · ลาก ⠿ ไปวางบนอีกโต๊ะเพื่อสลับ 2 โต๊ะ ${quick}`;
     const sel = state.tableList.filter((t) => reorderSel.includes(t.id));
     const people = sel.reduce((s, t) => s + usedAt(t.id), 0);
     const allVip = sel.every((t) => t.vip);
@@ -1327,6 +1355,13 @@
       <button class="btn btn-danger" data-ro="unseat">ล้างแขกออก</button>
       <button class="btn btn-danger" data-ro="delete">ลบโต๊ะ</button>
       <span class="sep"></span>${quick}<button class="btn" data-ro="clear">ล้างที่เลือก</button>`;
+  }
+  // "แขกพ่อ 1" for 3 tables → แขกพ่อ 1, แขกพ่อ 2, แขกพ่อ 3 (keeps zero padding like 01)
+  function numberedNames(base, n) {
+    const m = base.match(/^(.*?)(\d+)$/);
+    if (!m || n < 2) return Array(n).fill(base);
+    const start = parseInt(m[2], 10), width = m[2].length;
+    return Array.from({ length: n }, (_, i) => m[1] + String(start + i).padStart(width, '0'));
   }
   // Apply one action to every selected table — one undo step each
   function bulkAction(act) {
@@ -1350,11 +1385,12 @@
       persist();
       toast(`ตั้ง ${n} โต๊ะเป็นโต๊ะละ ${v} ที่แล้ว`);
     } else if (act === 'name') {
-      const raw = prompt(`ชื่อโต๊ะสำหรับ ${n} โต๊ะที่เลือก (เว้นว่างเพื่อลบชื่อ)`, nameOf(ids[0]));
+      const raw = prompt(`ชื่อโต๊ะสำหรับ ${n} โต๊ะที่เลือก\n• ลงท้ายด้วยตัวเลขเพื่อเรียงเลขให้ เช่น "แขกพ่อ 1" → แขกพ่อ 1, แขกพ่อ 2, …\n• เว้นว่างเพื่อลบชื่อ`, n > 1 ? '' : nameOf(ids[0]));
       if (raw === null) return;
-      sel.forEach((t) => (t.name = raw.trim()));
+      const names = numberedNames(raw.trim(), n);
+      sel.forEach((t, i) => (t.name = names[i]));
       persist();
-      toast(raw.trim() ? `ตั้งชื่อ ${n} โต๊ะแล้ว` : `ลบชื่อ ${n} โต๊ะแล้ว`);
+      toast(!raw.trim() ? `ลบชื่อ ${n} โต๊ะแล้ว` : n > 1 && names[0] !== names[1] ? `ตั้งชื่อ ${names[0]} – ${names[n - 1]} แล้ว` : `ตั้งชื่อ ${n} โต๊ะแล้ว`);
     } else if (act === 'unseat') {
       if (!people) return toast('โต๊ะที่เลือกยังไม่มีแขก');
       if (!confirm(`เอาแขก ${people} คนออกจาก ${n} โต๊ะที่เลือก? (รายชื่อจะกลับไปอยู่ใน "ยังไม่จัด")`)) return;
@@ -1401,7 +1437,11 @@
     if (!b || b.dataset.ro === 'swap') return;
     const act = b.dataset.ro;
     if (act === 'place') reorderStep = 'place';
-    if (act === 'clear') reorderSel = [];
+    if (act === 'clear') { reorderSel = []; lastTablePick = null; }
+    if (act === 'range') {
+      rangeMode = !rangeMode;
+      if (rangeMode) lastTablePick = null;
+    }
     if (act === 'back') reorderStep = 'pick';
     if (act === 'all') reorderSel = [...new Set([...reorderSel, ...state.tableList.filter((t) => tableMatches(t.id)).map((t) => t.id)])];
     if (act === 'empty') reorderSel = [...new Set([...reorderSel, ...state.tableList.filter((t) => !usedAt(t.id)).map((t) => t.id)])];
@@ -1424,7 +1464,7 @@
   }
   function setReorder(on) {
     reorderMode = on;
-    reorderSel = []; reorderStep = 'pick'; placeSwap = false;
+    reorderSel = []; reorderStep = 'pick'; placeSwap = false; lastTablePick = null; rangeMode = false;
     if (on) selected.clear();
     $('reorderBtn').classList.toggle('on', on);
     $('reorderBtn').textContent = on ? '✓ เสร็จ' : '☑ เลือกหลายโต๊ะ';
