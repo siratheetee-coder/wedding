@@ -186,6 +186,9 @@
     .ft.drop-ok .ft-circle { border-color: var(--ok); box-shadow: 0 0 0 3px #6a8f5c55; }
     .ft.drop-bad .ft-circle { border-color: var(--danger); box-shadow: 0 0 0 3px #c0392b44; }
     .reorder .ft { touch-action: none; cursor: grab; }
+    .side-slot { width: 64px; height: 64px; margin: 8px auto 0; border-radius: 50%; border: 2px dashed var(--border); color: var(--accent); display: flex; flex-direction: column; align-items: center; justify-content: center; font-size: 1.2rem; line-height: 1; cursor: pointer; background: white; transition: border-color 0.15s, background 0.15s; }
+    .side-slot small { font-size: 0.55rem; color: var(--text-muted); margin-top: 3px; }
+    .side-slot:hover, .side-slot.drop-ok { border-color: var(--accent); background: #f7f1ea; }
     .add-row { display: flex; gap: 6px; }
     .add-row .field:first-child { flex: 1; }
     .add-row .field.count { width: 64px; }
@@ -1117,18 +1120,21 @@
     const left = reg.slice(0, leftN), right = reg.slice(leftN);
     const cols = Math.max(1, L.perRow);
     const tbl = (t) => planTable(t, selPeople, searching, forPrint);
-    const side = (list, name, last) => `
+    // The dashed "+" at the end of each side adds a table there, and is a drop
+    // target: dragging a table onto it moves the table to that side.
+    const sideSlot = (key) => (forPrint || placing() ? '' : `<div class="side-slot" data-side-drop="${key}" title="แตะเพื่อเพิ่มโต๊ะ หรือลากโต๊ะมาวางเพื่อย้ายมาฝั่งนี้">＋<small>เพิ่ม / วาง</small></div>`);
+    const side = (list, name, last, key) => `
       <div class="plan-side">
         <div class="plan-side-label">${name} (${list.length} โต๊ะ)${sideSummary(list)}</div>
-        <div class="plan-side-grid" style="--cols:${Math.min(cols, Math.max(1, list.length + (last && placing() && !forPrint ? 1 : 0)))}">${list.map(tbl).join('')}${last && !forPrint ? endSlot('regular') : ''}</div>
+        <div class="plan-side-grid" style="--cols:${Math.min(cols, Math.max(1, list.length + (forPrint ? 0 : 1)))}">${list.map(tbl).join('')}${last && !forPrint ? endSlot('regular') : ''}${sideSlot(key)}</div>
       </div>`;
     return `<div class="plan">
         <div class="stage">เวที</div>
         ${vip.length || (!forPrint && placing()) ? `<div class="plan-vip"><div class="plan-vip-label">VIP · แถวหน้าสุด</div>${vip.map(tbl).join('')}${forPrint ? '' : endSlot('vip')}</div>` : ''}
         <div class="plan-sides">
-          ${side(left, 'ฝั่งซ้าย')}
+          ${side(left, 'ฝั่งซ้าย', false, 'left')}
           <div class="plan-aisle">ทางเดิน</div>
-          ${side(right, 'ฝั่งขวา', true)}
+          ${side(right, 'ฝั่งขวา', true, 'right')}
         </div>
       </div>`;
   }
@@ -1393,6 +1399,8 @@
   $('grid').addEventListener('click', (e) => {
     const add = e.target.closest('[data-add-table]');
     if (add) return addTable(add.dataset.addTable === 'vip');
+    const sideAdd = e.target.closest('[data-side-drop]');
+    if (sideAdd) return addTableToSide(sideAdd.dataset.sideDrop);
     const slot = e.target.closest('[data-slot]');
     if (slot) { moveTables(reorderSel, null, slot.dataset.slot === 'vip'); return finishPlacing(); }
     const clr = e.target.closest('[data-clear]');
@@ -1623,8 +1631,8 @@
     tdrag.x = x; tdrag.y = y;
     tdrag.ghost.style.left = x - tdrag.dx + 'px';
     tdrag.ghost.style.top = y - tdrag.dy + 'px';
-    const over = document.elementFromPoint(x, y)?.closest('#grid [data-table]');
-    const id = over && over.dataset.table !== tdrag.id ? over.dataset.table : null;
+    const over = document.elementFromPoint(x, y)?.closest('#grid [data-table], #grid [data-side-drop]');
+    const id = !over ? null : over.dataset.sideDrop ? 'side:' + over.dataset.sideDrop : over.dataset.table !== tdrag.id ? over.dataset.table : null;
     if (id !== tdrag.over) {
       document.querySelectorAll('#grid .drop-ok').forEach((c) => c.classList.remove('drop-ok'));
       if (over && id) over.classList.add('drop-ok');
@@ -1655,7 +1663,8 @@
     const { id, over, ghost } = tdrag;
     tdrag = null;
     ghost.remove();
-    if (drop && over) swapTables(id, over);
+    if (drop && over?.startsWith('side:')) moveTableToSide(id, over.slice(5));
+    else if (drop && over) swapTables(id, over);
     else renderGrid();
   }
   window.addEventListener('pointerup', () => endTableDrag(true));
@@ -2003,6 +2012,40 @@
   }
 
   // ---------- add / delete tables ----------
+  // Left / right split helpers: tables are one ordered list (VIP first, then left,
+  // then right); `layout.left` says how many regular tables sit on the left.
+  function leftCount() {
+    const reg = state.tableList.filter((t) => !t.vip).length, L = layoutOf();
+    return Math.min(reg, L.left ?? Math.ceil(reg / 2));
+  }
+  function placeOnSide(t, side, left) {
+    const vipN = state.tableList.filter((x) => x.vip).length;
+    t.vip = false;
+    if (side === 'left') {
+      state.tableList.splice(vipN + left, 0, t);
+      left++;
+    } else state.tableList.push(t);
+    state.layout = { ...layoutOf(), left };
+  }
+  function addTableToSide(side) {
+    const left = leftCount(), t = { id: tid(), vip: false };
+    placeOnSide(t, side, left);
+    persist(); render();
+    toast(`เพิ่ม${labelOf(t.id)}ที่${side === 'left' ? 'ฝั่งซ้าย' : 'ฝั่งขวา'}แล้ว`);
+  }
+  function moveTableToSide(id, side) {
+    const i = state.tableList.findIndex((t) => t.id === id);
+    if (i < 0) return;
+    const t = state.tableList[i];
+    const vipN = state.tableList.filter((x) => x.vip).length;
+    let left = leftCount();
+    const wasLeft = !t.vip && i - vipN < left;
+    state.tableList.splice(i, 1);
+    if (wasLeft) left--;
+    placeOnSide(t, side, left);
+    persist(); render();
+    toast(`ย้ายไปท้าย${side === 'left' ? 'ฝั่งซ้าย' : 'ฝั่งขวา'}แล้ว — ตอนนี้เป็น${labelOf(id)} · ซ้าย ${leftCount()} / ขวา ${state.tableList.filter((x) => !x.vip).length - leftCount()} โต๊ะ`, 3500);
+  }
   function addTable(vip) {
     const t = { id: tid(), vip };
     state.tableList.push(t);
