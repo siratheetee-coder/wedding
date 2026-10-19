@@ -157,6 +157,18 @@
     .drag-ghost { position: fixed; z-index: 70; pointer-events: none; opacity: 0.9; box-shadow: 0 8px 24px rgba(0,0,0,0.18); transform: rotate(1.5deg); }
     .btn.on { background: var(--accent); border-color: var(--accent); color: white; }
     .stat.arrived .stat-value { color: var(--ok); }
+    .stat.gift { font: inherit; text-align: left; cursor: pointer; color: inherit; }
+    .stat.gift:hover { border-color: var(--accent); }
+    .stat.gift .stat-value { color: var(--accent-dark); }
+    .gift-big { display: flex; gap: 10px; margin: 6px 0 4px; flex-wrap: wrap; }
+    .gift-big div { flex: 1; min-width: 120px; background: var(--cream); border: 1px solid var(--border); border-radius: 6px; padding: 10px 12px; }
+    .gift-big b { display: block; font-family: 'Playfair Display', serif; font-size: 1.7rem; font-weight: 400; color: var(--accent-dark); }
+    .gift-big span { font-size: 0.75rem; color: var(--text-muted); }
+    .gift-table { width: 100%; border-collapse: collapse; font-size: 0.82rem; margin-top: 4px; }
+    .gift-table th, .gift-table td { text-align: left; padding: 5px 6px; border-bottom: 1px solid var(--beige); }
+    .gift-table th { color: var(--text-muted); font-weight: 500; font-size: 0.75rem; }
+    .gift-table td.n { text-align: right; white-space: nowrap; }
+    .gift-table td:last-child { white-space: nowrap; }
     .in-badge { font-size: 0.7rem; color: var(--ok); font-weight: 600; white-space: nowrap; }
     .tc-in { font-size: 0.7rem; color: var(--ok); font-weight: 600; }
     .ft-dot.in { box-shadow: 0 0 0 2px #fff, 0 0 0 3.5px var(--ok); }
@@ -388,6 +400,7 @@
     <div class="stat"><div class="stat-value" id="sUnseated">0</div><div class="stat-label">ยังไม่ได้จัด</div></div>
     <div class="stat"><div class="stat-value" id="sTables">0</div><div class="stat-label">โต๊ะที่ใช้</div></div>
     <div class="stat arrived"><div class="stat-value" id="sArrived">0</div><div class="stat-label">มาถึงแล้ว (คน)</div></div>
+    <button class="stat gift" id="giftBtn" title="ดูรายละเอียดของชำร่วย"><div class="stat-value" id="sGifts">0</div><div class="stat-label">ของชำร่วย (ชุด) ›</div></button>
     <div class="progress">
       <div class="progress-bar"><div class="progress-fill" id="pFill" style="width:0"></div></div>
       <div class="progress-text" id="pText"></div>
@@ -535,6 +548,19 @@
   </div>
 </div>
 
+<!-- SOUVENIR MODAL -->
+<div class="modal-bg" id="giftModal">
+  <div class="modal" style="max-width:620px">
+    <h2>ของชำร่วย</h2>
+    <p class="sub">นับเฉพาะแขกที่จัดโต๊ะแล้ว · คนที่มาด้วยกัน (1 รายการในรายชื่อ) = 1 ชุด · กลุ่มที่ถูกแบ่งไปหลายโต๊ะยังนับเป็น 1 ชุด</p>
+    <div id="giftBody"></div>
+    <div class="modal-actions">
+      <button class="btn" id="giftExcel">⬇ Excel รายการแจก</button>
+      <button class="btn btn-primary" data-close>ปิด</button>
+    </div>
+  </div>
+</div>
+
 <!-- CHECK MODAL -->
 <div class="modal-bg" id="checkModal">
   <div class="modal" style="max-width:620px">
@@ -559,7 +585,7 @@
     <p class="hint" style="margin-top:8px">แท็บเล็ตตั้งหน้างานให้แขกใช้ร่วมกัน: เปิด <a href="/find.html?kiosk" target="_blank" rel="noopener">หน้าค้นหาโต๊ะแบบโหมดหน้างาน ↗</a> (ไม่จำชื่อ และล้างหน้าจอเอง)</p>
     <div class="dl-grid">
       <button class="dl" id="dlWord"><b>W</b><span>Word (.docx)</span><small>รายชื่อแต่ละโต๊ะ + ค้นหาโต๊ะจากชื่อ แก้ไขต่อได้</small></button>
-      <button class="dl" id="dlExcel"><b>X</b><span>Excel (.xlsx)</span><small>4 แผ่นงาน: ตามโต๊ะ · สรุปโต๊ะ · ค้นหาจากชื่อ · สรุปกลุ่ม</small></button>
+      <button class="dl" id="dlExcel"><b>X</b><span>Excel (.xlsx)</span><small>5 แผ่นงาน: ตามโต๊ะ · สรุปโต๊ะ · ค้นหาจากชื่อ · สรุปกลุ่ม · ของชำร่วย</small></button>
       <button class="dl" id="prGo"><b>⎙</b><span>พิมพ์ / PDF</span><small>ทุกอย่างที่ติ๊ก รวมผังห้องและป้าย QR (A4 แนวนอน)</small></button>
       <button class="dl" id="exportBtn"><b>,</b><span>CSV</span><small>ข้อมูลดิบ เปิดได้ทุกโปรแกรม</small></button>
     </div>
@@ -954,6 +980,49 @@
   });
 
   // ---------- render ----------
+  // ---------- souvenirs ----------
+  // One souvenir per party that came together: every seated guest entry counts once,
+  // and the pieces of a party split across tables ("… (2/3)" or split by hand,
+  // same name and group) are put back together first.
+  function souvenirParties() {
+    const parties = new Map();
+    state.guests.filter((g) => g.table).forEach((g) => {
+      const key = normName(g.name) + '|' + (g.group || '');
+      const p = parties.get(key) || { name: g.name.replace(/\s*\(\d+\/\d+\)\s*$/, ''), group: g.group || '', side: g.side || '', people: 0, tables: new Set(), ids: [] };
+      p.people += g.count;
+      p.tables.add(g.table);
+      p.ids.push(g.id);
+      parties.set(key, p);
+    });
+    return [...parties.values()].map((p) => ({ ...p, tables: [...p.tables].sort((a, b) => orderOf(a) - orderOf(b)) }))
+      .sort((a, b) => orderOf(a.tables[0]) - orderOf(b.tables[0]) || a.name.localeCompare(b.name, 'th'));
+  }
+  function renderGift() {
+    const ps = souvenirParties();
+    const people = ps.reduce((n, p) => n + p.people, 0);
+    const bySide = {}, byGroup = {};
+    ps.forEach((p) => {
+      bySide[p.side || 'ไม่ระบุฝ่าย'] = (bySide[p.side || 'ไม่ระบุฝ่าย'] || 0) + 1;
+      const g = (byGroup[p.group || '—'] ||= { sets: 0, people: 0 });
+      g.sets++; g.people += p.people;
+    });
+    const big = ps.filter((p) => p.people >= 8).sort((a, b) => b.people - a.people);
+    $('giftBody').innerHTML = `
+      <div class="gift-big">
+        <div><b>${ps.length}</b><span>ชุดของชำร่วย</span></div>
+        <div><b>${people}</b><span>คน (แขกที่จัดโต๊ะแล้ว)</span></div>
+        ${Object.entries(bySide).map(([k, v]) => `<div><b>${v}</b><span>ชุด · ฝ่าย${esc(k)}</span></div>`).join('')}
+      </div>
+      ${big.length ? `<div class="ck-sec"><h3>กลุ่มใหญ่ที่นับเป็น 1 ชุด <span class="n warn">${big.length}</span></h3>
+        <p>รายการเหล่านี้มี 8 คนขึ้นไปแต่นับเป็นชุดเดียว — ถ้าจะแจกมากกว่า 1 ชุด ให้แบ่งรายการ (ปุ่ม "แบ่ง") หรือบวกเพิ่มเอง</p>
+        <table class="gift-table"><tr><th>รายการ</th><th class="n">คน</th><th>โต๊ะ</th></tr>
+        ${big.map((p) => `<tr><td>${esc(p.name)}</td><td class="n">${p.people}</td><td>${p.tables.map(shortLabel).join(', ')}</td></tr>`).join('')}</table></div>` : ''}
+      <div class="ck-sec"><h3>แยกตามกลุ่ม</h3>
+        <table class="gift-table"><tr><th>กลุ่ม</th><th class="n">ชุด</th><th class="n">คน</th></tr>
+        ${Object.entries(byGroup).sort((a, b) => b[1].sets - a[1].sets).map(([k, v]) => `<tr><td>${esc(k)}</td><td class="n">${v.sets}</td><td class="n">${v.people}</td></tr>`).join('')}</table></div>`;
+  }
+  $('giftBtn').addEventListener('click', () => { renderGift(); openModal('giftModal'); });
+
   // ---------- plan check ----------
   // Things worth fixing before the day; each row jumps to the table / guest / group.
   const UNKNOWN_MARK = '⚠ ยังไม่ระบุจำนวน';
@@ -1054,6 +1123,7 @@
     $('sUnseated').textContent = total - seated;
     $('sTables').textContent = `${used}/${state.tableList.length}`;
     $('sArrived').textContent = state.guests.filter((g) => checkins[g.id]).reduce((s, g) => s + g.count, 0);
+    $('sGifts').textContent = souvenirParties().length;
     $('pFill').style.width = seats ? Math.min(100, (seated / seats) * 100) + '%' : 0;
     const free = seats - seated;
     $('pText').textContent = `ใช้ไป ${seated} จาก ${seats} ที่นั่ง · ว่าง ${free} ที่` + (total > seats ? ` · ⚠ แขกเกินที่นั่ง ${total - seats} คน` : '');
@@ -2603,7 +2673,7 @@
     finally { btn.disabled = false; }
   }
 
-  async function buildExcel() {
+  async function buildExcel(opts = {}) {
     const ExcelJS = await loadLib('assets/vendor/exceljs.min.js', 'ExcelJS');
     const wb = new ExcelJS.Workbook();
     wb.creator = 'Madchimapon & Sirathee';
@@ -2695,8 +2765,16 @@
     Object.entries(groupsMap).forEach(([k, x], i) => add(s4, [k, x.side, x.rows, x.people, x.unseated || '',
       [...x.tables].sort((a, b) => orderOf(a) - orderOf(b)).map(shortLabel).join(', ')], { zebra: i % 2 === 1 }));
 
+    // 5. Souvenir hand-out list: one row per party
+    const s5 = sheet('ของชำร่วย', `ของชำร่วย ${souvenirParties().length} ชุด`, [
+      { header: 'ลำดับ', key: 'i', width: 7, center: true }, { header: 'รายการ (คนที่มาด้วยกัน)', key: 'n', width: 44 }, { header: 'คน', key: 'c', width: 7, center: true },
+      { header: 'โต๊ะ', key: 't', width: 14, center: true }, { header: 'กลุ่ม', key: 'g', width: 30 }, { header: 'ฝ่าย', key: 's', width: 9 }, { header: 'แจกแล้ว', key: 'ok', width: 9, center: true },
+    ]);
+    souvenirParties().forEach((p, i) => add(s5, [i + 1, p.name, p.people, p.tables.map(shortLabel).join(', '), p.group, p.side, '☐'], { zebra: i % 2 === 1 }));
+    if (opts.giftOnly) wb.worksheets.slice(0, -1).forEach((w) => wb.removeWorksheet(w.id));
+
     const buf = await wb.xlsx.writeBuffer();
-    download(`seating-plan-${fileDate()}.xlsx`, buf, 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    download(opts.giftOnly ? `souvenirs-${fileDate()}.xlsx` : `seating-plan-${fileDate()}.xlsx`, buf, 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
   }
 
   async function buildWord() {
@@ -2778,7 +2856,8 @@
     const doc = new Document({ creator: 'Madchimapon & Sirathee', title: 'ผังที่นั่งงานแต่ง', styles: { default: { document: { run: { font: FONT, size: 28 } } } }, sections });
     download(`seating-plan-${fileDate()}.docx`, await Packer.toBlob(doc), 'application/vnd.openxmlformats-officedocument.wordprocessingml.document');
   }
-  $('dlExcel').addEventListener('click', (e) => withBusy(e.currentTarget, buildExcel));
+  $('dlExcel').addEventListener('click', (e) => withBusy(e.currentTarget, () => buildExcel()));
+  $('giftExcel').addEventListener('click', (e) => withBusy(e.currentTarget, () => buildExcel({ giftOnly: true })));
   $('dlWord').addEventListener('click', (e) => withBusy(e.currentTarget, buildWord));
 
   // ---------- room item editor ----------
