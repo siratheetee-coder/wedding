@@ -169,6 +169,10 @@
     .gift-table th { color: var(--text-muted); font-weight: 500; font-size: 0.75rem; }
     .gift-table td.n { text-align: right; white-space: nowrap; }
     .gift-table td:last-child { white-space: nowrap; }
+    .gift-table .hint { font-size: 0.7rem; }
+    .gift-seg { display: inline-flex; }
+    .gift-seg button { padding: 4px 8px; font-size: 0.72rem; flex: none; }
+    .ck-sec p .btn { padding: 3px 8px; font-size: 0.72rem; margin-left: 4px; }
     .in-badge { font-size: 0.7rem; color: var(--ok); font-weight: 600; white-space: nowrap; }
     .tc-in { font-size: 0.7rem; color: var(--ok); font-weight: 600; }
     .ft-dot.in { box-shadow: 0 0 0 2px #fff, 0 0 0 3.5px var(--ok); }
@@ -552,7 +556,7 @@
 <div class="modal-bg" id="giftModal">
   <div class="modal" style="max-width:620px">
     <h2>ของชำร่วย</h2>
-    <p class="sub">นับเฉพาะแขกที่จัดโต๊ะแล้ว · คนที่มาด้วยกัน (1 รายการในรายชื่อ) = 1 ชุด · กลุ่มที่ถูกแบ่งไปหลายโต๊ะยังนับเป็น 1 ชุด</p>
+    <p class="sub">นับเฉพาะแขกที่จัดโต๊ะแล้ว · คนที่มาด้วยกัน (1 รายการในรายชื่อ) = 1 ชุด เว้นแต่เลือกให้แจกรายคน · กลุ่มที่ถูกแบ่งไปหลายโต๊ะยังนับเป็นรายการเดียว</p>
     <div id="giftBody"></div>
     <div class="modal-actions">
       <button class="btn" id="giftExcel">⬇ Excel รายการแจก</button>
@@ -992,36 +996,56 @@
       p.people += g.count;
       p.tables.add(g.table);
       p.ids.push(g.id);
+      if (g.giftEach) p.each = true;   // marked "one souvenir per person"
       parties.set(key, p);
     });
-    return [...parties.values()].map((p) => ({ ...p, tables: [...p.tables].sort((a, b) => orderOf(a) - orderOf(b)) }))
+    return [...parties.values()].map((p) => ({ ...p, tables: [...p.tables].sort((a, b) => orderOf(a) - orderOf(b)), sets: p.each ? p.people : 1 }))
       .sort((a, b) => orderOf(a.tables[0]) - orderOf(b.tables[0]) || a.name.localeCompare(b.name, 'th'));
+  }
+  const giftTotal = (ps = souvenirParties()) => ps.reduce((n, p) => n + p.sets, 0);
+  // Parties of 3+ people can be counted as one set or one per person
+  function setGiftEach(ids, each) {
+    const set = new Set(ids);
+    state.guests.forEach((g) => { if (set.has(g.id)) { if (each) g.giftEach = true; else delete g.giftEach; } });
+    persist(); renderStats(); renderGift();
   }
   function renderGift() {
     const ps = souvenirParties();
     const people = ps.reduce((n, p) => n + p.people, 0);
     const bySide = {}, byGroup = {};
     ps.forEach((p) => {
-      bySide[p.side || 'ไม่ระบุฝ่าย'] = (bySide[p.side || 'ไม่ระบุฝ่าย'] || 0) + 1;
+      bySide[p.side || 'ไม่ระบุฝ่าย'] = (bySide[p.side || 'ไม่ระบุฝ่าย'] || 0) + p.sets;
       const g = (byGroup[p.group || '—'] ||= { sets: 0, people: 0 });
-      g.sets++; g.people += p.people;
+      g.sets += p.sets; g.people += p.people;
     });
-    const big = ps.filter((p) => p.people >= 8).sort((a, b) => b.people - a.people);
+    const big = ps.filter((p) => p.people > 2).sort((a, b) => b.people - a.people);
+    const eachN = big.filter((p) => p.each).length;
     $('giftBody').innerHTML = `
       <div class="gift-big">
-        <div><b>${ps.length}</b><span>ชุดของชำร่วย</span></div>
+        <div><b>${giftTotal(ps)}</b><span>ชุดของชำร่วย</span></div>
         <div><b>${people}</b><span>คน (แขกที่จัดโต๊ะแล้ว)</span></div>
         ${Object.entries(bySide).map(([k, v]) => `<div><b>${v}</b><span>ชุด · ฝ่าย${esc(k)}</span></div>`).join('')}
       </div>
-      ${big.length ? `<div class="ck-sec"><h3>กลุ่มใหญ่ที่นับเป็น 1 ชุด <span class="n warn">${big.length}</span></h3>
-        <p>รายการเหล่านี้มี 8 คนขึ้นไปแต่นับเป็นชุดเดียว — ถ้าจะแจกมากกว่า 1 ชุด ให้แบ่งรายการ (ปุ่ม "แบ่ง") หรือบวกเพิ่มเอง</p>
-        <table class="gift-table"><tr><th>รายการ</th><th class="n">คน</th><th>โต๊ะ</th></tr>
-        ${big.map((p) => `<tr><td>${esc(p.name)}</td><td class="n">${p.people}</td><td>${p.tables.map(shortLabel).join(', ')}</td></tr>`).join('')}</table></div>` : ''}
+      ${big.length ? `<div class="ck-sec"><h3>กลุ่มที่มากกว่า 2 คน <span class="n warn">${big.length}</span></h3>
+        <p>เลือกได้ทีละรายการว่าจะให้ <b>รวม 1 ชุด</b> หรือ <b>แจกรายคน</b> · ตอนนี้แจกรายคน ${eachN} รายการ
+          <button class="btn" data-gift-all="each">ทั้งหมดเป็นรายคน</button> <button class="btn" data-gift-all="one">ทั้งหมดรวม 1 ชุด</button></p>
+        <table class="gift-table"><tr><th>รายการ</th><th class="n">คน</th><th>โต๊ะ</th><th>นับเป็น</th></tr>
+        ${big.map((p) => `<tr><td>${esc(p.name)}<div class="hint">${esc(p.group)}</div></td><td class="n">${p.people}</td><td>${p.tables.map(shortLabel).join(', ')}</td>
+          <td><div class="seg gift-seg" data-gift-ids="${p.ids.join(',')}"><button data-gift="one" class="${p.each ? '' : 'active'}">รวม 1</button><button data-gift="each" class="${p.each ? 'active' : ''}">รายคน ${p.people}</button></div></td></tr>`).join('')}</table></div>` : ''}
       <div class="ck-sec"><h3>แยกตามกลุ่ม</h3>
         <table class="gift-table"><tr><th>กลุ่ม</th><th class="n">ชุด</th><th class="n">คน</th></tr>
         ${Object.entries(byGroup).sort((a, b) => b[1].sets - a[1].sets).map(([k, v]) => `<tr><td>${esc(k)}</td><td class="n">${v.sets}</td><td class="n">${v.people}</td></tr>`).join('')}</table></div>`;
   }
   $('giftBtn').addEventListener('click', () => { renderGift(); openModal('giftModal'); });
+  $('giftBody').addEventListener('click', (e) => {
+    const one = e.target.closest('[data-gift]');
+    if (one) return setGiftEach(one.closest('[data-gift-ids]').dataset.giftIds.split(','), one.dataset.gift === 'each');
+    const all = e.target.closest('[data-gift-all]');
+    if (all) {
+      const ids = souvenirParties().filter((p) => p.people > 2).flatMap((p) => p.ids);
+      setGiftEach(ids, all.dataset.giftAll === 'each');
+    }
+  });
 
   // ---------- plan check ----------
   // Things worth fixing before the day; each row jumps to the table / guest / group.
@@ -1123,7 +1147,7 @@
     $('sUnseated').textContent = total - seated;
     $('sTables').textContent = `${used}/${state.tableList.length}`;
     $('sArrived').textContent = state.guests.filter((g) => checkins[g.id]).reduce((s, g) => s + g.count, 0);
-    $('sGifts').textContent = souvenirParties().length;
+    $('sGifts').textContent = giftTotal();
     $('pFill').style.width = seats ? Math.min(100, (seated / seats) * 100) + '%' : 0;
     const free = seats - seated;
     $('pText').textContent = `ใช้ไป ${seated} จาก ${seats} ที่นั่ง · ว่าง ${free} ที่` + (total > seats ? ` · ⚠ แขกเกินที่นั่ง ${total - seats} คน` : '');
@@ -2766,11 +2790,12 @@
       [...x.tables].sort((a, b) => orderOf(a) - orderOf(b)).map(shortLabel).join(', ')], { zebra: i % 2 === 1 }));
 
     // 5. Souvenir hand-out list: one row per party
-    const s5 = sheet('ของชำร่วย', `ของชำร่วย ${souvenirParties().length} ชุด`, [
-      { header: 'ลำดับ', key: 'i', width: 7, center: true }, { header: 'รายการ (คนที่มาด้วยกัน)', key: 'n', width: 44 }, { header: 'คน', key: 'c', width: 7, center: true },
+    const s5 = sheet('ของชำร่วย', `ของชำร่วย ${giftTotal()} ชุด`, [
+      { header: 'ลำดับ', key: 'i', width: 7, center: true }, { header: 'รายการ (คนที่มาด้วยกัน)', key: 'n', width: 44 }, { header: 'คน', key: 'c', width: 7, center: true }, { header: 'ชุด', key: 'sets', width: 7, center: true },
       { header: 'โต๊ะ', key: 't', width: 14, center: true }, { header: 'กลุ่ม', key: 'g', width: 30 }, { header: 'ฝ่าย', key: 's', width: 9 }, { header: 'แจกแล้ว', key: 'ok', width: 9, center: true },
     ]);
-    souvenirParties().forEach((p, i) => add(s5, [i + 1, p.name, p.people, p.tables.map(shortLabel).join(', '), p.group, p.side, '☐'], { zebra: i % 2 === 1 }));
+    souvenirParties().forEach((p, i) => add(s5, [i + 1, p.name, p.people, p.sets, p.tables.map(shortLabel).join(', '), p.group, p.side, '☐'], { zebra: i % 2 === 1 }));
+    add(s5, ['', 'รวม', souvenirParties().reduce((n, p) => n + p.people, 0), giftTotal(), '', '', '', ''], { bold: true });
     if (opts.giftOnly) wb.worksheets.slice(0, -1).forEach((w) => wb.removeWorksheet(w.id));
 
     const buf = await wb.xlsx.writeBuffer();
