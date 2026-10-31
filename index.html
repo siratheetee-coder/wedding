@@ -803,14 +803,43 @@
     /* ── ONLINE GIFT ── */
     #online-gift { background: var(--cream); overflow: hidden; }
     .gift-card {
-      max-width: 420px;
+      max-width: 640px;
       margin: 8px auto 0;
-      padding: 32px 28px;
+      padding: 36px;
       background: var(--white);
       border: 1px solid var(--border-soft);
       border-radius: 8px;
       box-shadow: var(--shadow-sm);
       text-align: center;
+      display: grid;
+      grid-template-columns: 200px 1fr;
+      column-gap: 36px;
+      align-items: center;
+    }
+    .gift-qr img {
+      display: block;
+      width: 200px;
+      height: 200px;
+      padding: 10px;
+      background: var(--white);
+      border: 1px solid var(--border-soft);
+      border-radius: 8px;
+    }
+    .gift-qr-caption {
+      margin-top: 10px;
+      font-size: var(--fs-xs);
+      color: var(--text-muted);
+      letter-spacing: 0.04em;
+    }
+    .gift-account {
+      min-width: 0;
+      align-self: stretch;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding-left: 36px;
+      border-left: 1px solid var(--border-soft);
     }
     .gift-bank {
       display: flex;
@@ -864,11 +893,29 @@
       transform: translateY(-2px);
       box-shadow: 0 8px 20px rgba(138, 106, 79, 0.3);
     }
+    @media (max-width: 640px) {
+      .gift-card {
+        grid-template-columns: 1fr;
+        padding: 28px 20px;
+        row-gap: 24px;
+      }
+      .gift-qr { justify-self: center; }
+      .gift-account {
+        padding-left: 0;
+        padding-top: 24px;
+        border-left: 0;
+        border-top: 1px solid var(--border-soft);
+      }
+      .gift-thanks { margin-top: 0; }
+    }
     @media (max-width: 480px) {
       .gift-account-number { font-size: 1.6rem; }
     }
     .gift-thanks {
-      margin-top: 24px;
+      grid-column: 1 / -1;
+      margin-top: 28px;
+      padding-top: 22px;
+      border-top: 1px solid var(--border-soft);
       font-family: 'Playfair Display', 'Sarabun', serif;
       font-style: italic;
       color: var(--accent-ink);
@@ -1889,11 +1936,17 @@
        data-en="If you are unable to join us in person, you can send your blessing to the account below">สำหรับท่านใดที่ไม่สะดวกเดินทาง สามารถร่วมผูกแขนออนไลน์ได้ที่บัญชีด้านล่าง</p>
   </div>
   <div class="gift-card fade-up">
+    <div class="gift-qr">
+      <img src="assets/qr-code.jpg" alt="QR Code พร้อมเพย์" width="200" height="200" />
+      <div class="gift-qr-caption" data-th="สแกนด้วยแอปธนาคาร" data-en="Scan with your banking app">สแกนด้วยแอปธนาคาร</div>
+    </div>
+    <div class="gift-account">
     <div class="gift-bank"><img class="gift-bank-logo" src="assets/ktb-logo.png" alt="" width="24" height="24" /><span data-th="ธนาคารกรุงไทย" data-en="Krungthai Bank">ธนาคารกรุงไทย</span></div>
     <div class="gift-account-name">น.ส. มัชฌิมาพร จันหาญ</div>
     <div class="gift-account-number" id="giftAccountNumber">774-3-09346-8</div>
     <button type="button" class="gift-copy" id="giftCopy"
             data-th="คัดลอกเลขบัญชี" data-en="Copy Account Number">คัดลอกเลขบัญชี</button>
+    </div>
     <div class="gift-thanks" data-th="ปุ๋มปิ๋มและออโต้ ขอขอบคุณค่ะ/ครับ ♡" data-en="With love and gratitude, Pumpim &amp; Auto ♡">ปุ๋มปิ๋มและออโต้ ขอขอบคุณค่ะ/ครับ ♡</div>
   </div>
   <div class="guestbook-wrap" id="guestbook">
