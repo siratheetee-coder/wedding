@@ -234,6 +234,9 @@
     .ri-desk { background: #e8eef6; border: 1px solid #c3d1e3; color: #3e5b80; }
     .ri-dance { background: repeating-linear-gradient(45deg, #faf3e6 0 12px, #f4ead8 12px 24px); border: 1px solid #e6d6b8; color: #a07a2c; }
     .ri-label { color: var(--text-muted); font-style: italic; }
+    .ri-vipzone { background: #e9f0f8; border: 2px solid #9fb8d6; color: #3e5b80; align-items: flex-end; padding-bottom: 6px; font-size: 0.68rem; }
+    .ri-carpet { background: linear-gradient(90deg, #b8473a, #c9574a 50%, #b8473a); color: #fff3ef; writing-mode: vertical-rl; letter-spacing: 0.4em; border-radius: 2px; }
+    .ri-carpet.wide { writing-mode: horizontal-tb; }
     .room.editing .room-item { cursor: grab; outline: 2px dashed rgba(139,110,90,0.55); outline-offset: -2px; touch-action: none; }
     .room.editing .room-item:hover { outline-color: var(--accent); }
     .cell-hl { position: absolute; border: 2px dashed var(--accent); border-radius: 50%; background: rgba(139,110,90,0.08); pointer-events: none; z-index: 3; }
@@ -1052,7 +1055,7 @@
   const UNKNOWN_MARK = '⚠ ยังไม่ระบุจำนวน';
   const normName = (x) => x.replace(/\s*\(\d+\/\d+\)\s*$/, '').replace(/\s+/g, ' ').trim().toLowerCase();
   function planIssues() {
-    const issues = { over: [], spread: [], few: [], dup: [], unknown: [], unseated: [], total: null };
+    const issues = { over: [], unplaced: [], spread: [], few: [], dup: [], unknown: [], unseated: [], total: null };
     const reg = state.tableList.filter((t) => !t.vip);
     const L = layoutOf(), leftN = Math.min(reg.length, L.left ?? Math.ceil(reg.length / 2));
     const sideOf = (id) => {
@@ -1087,6 +1090,10 @@
       if (list.length < 2 || new Set(list.map((g) => g.group)).size < 2) continue;
       list.forEach((g) => issues.dup.push({ guest: g.id, text: `${g.name} · ${g.group || '—'} · ${g.table ? labelOf(g.table) : 'ยังไม่จัด'}` }));
     }
+    if (isFree()) {
+      state.tableList.filter((t) => !inRoom(t.pos) && usedAt(t.id) > 0).forEach((t) =>
+        issues.unplaced.push({ table: t.id, text: `${labelOf(t.id)} มีแขก ${usedAt(t.id)} คน` }));
+    }
     state.guests.forEach((g) => {
       if ((g.note || '').startsWith(UNKNOWN_MARK)) issues.unknown.push({ guest: g.id, text: `${g.name} · ${g.group || '—'}` });
       else if (!g.table) issues.unseated.push({ guest: g.id, text: `${g.name} (${g.count} คน) · ${g.group || '—'}` });
@@ -1094,7 +1101,7 @@
     return issues;
   }
   function issueCount(i) {
-    return i.over.length + i.spread.length + i.dup.length + i.unknown.length + i.unseated.length + (i.total ? 1 : 0);
+    return i.over.length + i.unplaced.length + i.spread.length + i.dup.length + i.unknown.length + i.unseated.length + (i.total ? 1 : 0);
   }
   function updateCheckBadge() {
     const n = issueCount(planIssues());
@@ -1110,6 +1117,7 @@
     $('ckSub').textContent = n ? `พบ ${n} เรื่องที่ควรตรวจ — แตะรายการเพื่อไปแก้` : '';
     $('ckList').innerHTML = (i.total ? `<div class="ck-sec"><h3>ที่นั่งไม่พอ <span class="n">!</span></h3><p>${esc(i.total)}</p></div>` : '')
       + sec('โต๊ะเกินจำนวน', i.over)
+      + sec('โต๊ะที่มีแขกแต่ยังไม่ได้วางในห้อง', i.unplaced, 'อยู่ในกล่อง "ยังไม่ได้วาง" ใต้ผังห้อง — ลากเข้าไปวางในห้อง หรือย้ายแขกไปโต๊ะอื่น')
       + sec('แขกยังไม่ระบุจำนวน', i.unknown, 'ใส่จำนวนคนให้ถูกต้องก่อนจัดโต๊ะ (ตอนนี้นับไว้คนละ 1)')
       + sec('แขกที่ยังไม่ได้จัดโต๊ะ', i.unseated)
       + sec('กลุ่มที่นั่งกระจายกัน', i.spread, 'คนกลุ่มเดียวกันอยู่ห่างกัน หรืออยู่คนละฝั่งทางเดิน', true)
@@ -1284,22 +1292,30 @@
     stage: { label: 'เวที', w: 4, h: 1 }, pillar: { label: 'เสา', w: 1, h: 1 }, buffet: { label: 'บุฟเฟต์', w: 3, h: 1 },
     door: { label: 'ประตู', w: 1, h: 1 }, aisle: { label: 'ทางเดิน', w: 1, h: 4 }, desk: { label: 'โต๊ะลงทะเบียน', w: 2, h: 1 },
     dance: { label: 'ฟลอร์', w: 3, h: 2 }, label: { label: 'ป้ายข้อความ', w: 2, h: 1 },
+    vipzone: { label: 'โซน VIP', w: 1, h: 3 }, carpet: { label: 'พรมแดง', w: 1, h: 6 },
   };
+  // Shaded zones and text labels sit under tables; every other item blocks its cells
+  const NON_BLOCKING = new Set(['label', 'vipzone']);
   let roomEditing = false;
   const isFree = () => layoutOf().mode === 'free';
   const roomOf = () => Object.assign({ cols: 12, rows: 10, items: [] }, state.room);
   const inRoom = (pos, R = roomOf()) => !!pos && pos.x >= 0 && pos.y >= 0 && pos.x < R.cols && pos.y < R.rows;
   const tableAtCell = (x, y, except) => state.tableList.find((t) => t.id !== except && t.pos && t.pos.x === x && t.pos.y === y);
-  const itemAtCell = (x, y, except) => roomOf().items.find((it) => it.id !== except && it.type !== 'label' && x >= it.x && x < it.x + it.w && y >= it.y && y < it.y + it.h);
+  const itemAtCell = (x, y, except) => roomOf().items.find((it) => it.id !== except && !NON_BLOCKING.has(it.type) && x >= it.x && x < it.x + it.w && y >= it.y && y < it.y + it.h);
   function firstFreeCell() {
     const R = roomOf();
     for (let y = 0; y < R.rows; y++) for (let x = 0; x < R.cols; x++) if (!tableAtCell(x, y) && !itemAtCell(x, y)) return { x, y };
     state.room = { ...R, rows: R.rows + 1 };
     return { x: 0, y: R.rows };
   }
-  // Number tables by where they stand: rows from the stage back, then left to right
+  // Number tables by where they stand: rows from the stage back, then left to right.
+  // If the room has a lengthwise aisle (or runway), the side left of it is numbered
+  // first and then the right side, like the automatic layout.
   function renumberByPosition() {
-    const R = roomOf(), key = (t) => (inRoom(t.pos, R) ? t.pos.y * 1000 + t.pos.x : 1e9 + state.tableList.indexOf(t));
+    const R = roomOf();
+    const aisle = R.items.filter((it) => (it.type === 'aisle' || it.type === 'carpet') && it.h > it.w).sort((a, b) => b.h - a.h)[0];
+    const half = (t) => (aisle && t.pos.x > aisle.x ? 1 : 0);
+    const key = (t) => (inRoom(t.pos, R) ? half(t) * 1e6 + t.pos.y * 1000 + t.pos.x : 1e9 + state.tableList.indexOf(t));
     const vip = state.tableList.filter((t) => t.vip).sort((a, b) => key(a) - key(b));
     const reg = state.tableList.filter((t) => !t.vip).sort((a, b) => key(a) - key(b));
     state.tableList = [...vip, ...reg];
@@ -1323,6 +1339,67 @@
     const h = Math.max(1, Math.ceil(left.length / per), Math.ceil(right.length / per));
     items.push({ id: tid(), type: 'aisle', x: per, y, w: 1, h, label: 'ทางเดิน' });
     state.room = { cols, rows: y + h + 1, items };
+  }
+  // The hotel's floor plan (Taksila ballroom), drawn on a 9 × 18 grid: walls with doors
+  // in columns 0 and 8, three table columns either side of the red-carpet runway
+  // (column 4), which turns left near the back. Rows count from the stage.
+  const VENUE = {
+    cols: 9, rows: 18,
+    items: [
+      { type: 'stage', x: 1, y: 0, w: 7, h: 1, label: 'เวที' },
+      { type: 'carpet', x: 4, y: 1, w: 1, h: 14, label: 'พรมแดง' },
+      { type: 'carpet', x: 1, y: 13, w: 3, h: 2, label: 'พรมแดง' },
+      { type: 'vipzone', x: 3, y: 1, w: 1, h: 3, label: 'VIP 22 ท่าน' },
+      { type: 'vipzone', x: 5, y: 1, w: 1, h: 3, label: 'VIP 22 ท่าน' },
+      { type: 'buffet', x: 2, y: 4, w: 1, h: 1, label: 'บาร์น้ำ' },
+      { type: 'door', x: 0, y: 3, w: 1, h: 1, label: 'ประตู' }, { type: 'door', x: 0, y: 7, w: 1, h: 1, label: 'ประตู' }, { type: 'door', x: 0, y: 13, w: 1, h: 1, label: 'ประตู' },
+      { type: 'door', x: 8, y: 3, w: 1, h: 1, label: 'ประตู' }, { type: 'door', x: 8, y: 7, w: 1, h: 1, label: 'ประตู' }, { type: 'door', x: 8, y: 13, w: 1, h: 1, label: 'ประตู' },
+      { type: 'door', x: 4, y: 17, w: 1, h: 1, label: 'ทางเข้า' },
+    ],
+    vip: [{ x: 3, y: 2, capacity: 22 }, { x: 5, y: 2, capacity: 22 }],
+    // column → rows that hold a round table
+    columns: {
+      1: [2, 3, 4, 5, 6, 8, 9, 10, 11, 12, 15, 16],
+      2: [1, 2, 3, 5, 6, 7, 8, 9, 10, 11, 12, 16],
+      3: [4, 5, 6, 7, 8, 9, 10, 11, 12, 15, 16],
+      4: [15],
+      5: [4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 15, 16],
+      6: [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 15, 16],
+      7: [1, 2, 3, 4, 5, 6, 9, 10, 11, 12, 13, 14, 15, 16],
+    },
+  };
+  function applyVenue() {
+    const cells = Object.entries(VENUE.columns).flatMap(([x, ys]) => ys.map((y) => ({ x: +x, y })));
+    // Left of the runway first, then right — each front to back, left to right
+    const byOrder = (a, b) => a.y * 100 + a.x - (b.y * 100 + b.x);
+    const left = cells.filter((c) => c.x <= 4).sort(byOrder), right = cells.filter((c) => c.x > 4).sort(byOrder);
+    const slots = [...left, ...right];
+    const vipTables = state.tableList.filter((t) => t.vip);
+    const regular = state.tableList.filter((t) => !t.vip);
+    const msg = `จัดผังตามแปลนห้องจริง: โต๊ะกลม ${slots.length} ตัว + VIP ${VENUE.vip.length} ชุด (ชุดละ 22 ที่)\n`
+      + `ตอนนี้มีโต๊ะทั่วไป ${regular.length} ตัว · VIP ${vipTables.length} ตัว\n`
+      + (regular.length > slots.length ? `โต๊ะที่เกิน ${regular.length - slots.length} ตัว (เลือกโต๊ะว่างก่อน) จะไปอยู่ในกล่อง "ยังไม่ได้วาง"\n` : '')
+      + 'แขกในโต๊ะย้ายตามโต๊ะไปด้วย · กดย้อนกลับได้';
+    if (!confirm(msg)) return;
+    state.room = { cols: VENUE.cols, rows: VENUE.rows, items: VENUE.items.map((it) => ({ ...it, id: tid() })) };
+    // VIP: the first two VIP tables become the 22-seat VIP sets; any others go to the tray
+    while (vipTables.length < VENUE.vip.length) { const t = { id: tid(), vip: true }; state.tableList.unshift(t); vipTables.push(t); }
+    vipTables.forEach((t, i) => {
+      if (i < VENUE.vip.length) { t.pos = { x: VENUE.vip[i].x, y: VENUE.vip[i].y }; t.capacity = VENUE.vip[i].capacity; }
+      else delete t.pos;
+    });
+    // Regular tables keep their order; empty ones are left over first if there are too many
+    const used = regular.filter((t) => usedAt(t.id) > 0), empty = regular.filter((t) => !usedAt(t.id));
+    const ordered = [...used, ...empty];
+    ordered.forEach((t, i) => { if (i < slots.length) t.pos = { ...slots[i] }; else delete t.pos; });
+    // Fill any spare cells with new tables so the room matches the plan
+    for (let i = ordered.length; i < slots.length; i++) state.tableList.push({ id: tid(), vip: false, pos: { ...slots[i] } });
+    state.layout = { ...layoutOf(), mode: 'free' };
+    renumberByPosition();
+    roomEditing = false;
+    persist(); render();
+    const out = state.tableList.filter((t) => !inRoom(t.pos)).length;
+    toast(`จัดตามแปลนห้องจริงแล้ว${out ? ` · ${out} โต๊ะอยู่ในกล่อง "ยังไม่ได้วาง"` : ''}`, 4500);
   }
   function setLayoutMode(mode) {
     if (mode === layoutOf().mode || (mode === 'auto' && !isFree())) return;
@@ -1355,7 +1432,7 @@
   }
   function freeRoomMarkup(forPrint, selPeople, searching) {
     const R = roomOf();
-    const items = R.items.map((it) => `<div class="room-item ri-${it.type}${it.type === 'aisle' && it.w > it.h ? ' wide' : ''}"${forPrint ? '' : ` data-item="${it.id}"`}
+    const items = R.items.map((it) => `<div class="room-item ri-${it.type}${(it.type === 'aisle' || it.type === 'carpet') && it.w > it.h ? ' wide' : ''}"${forPrint ? '' : ` data-item="${it.id}"`}
       style="left:${it.x * CELL}px;top:${it.y * CELL}px;width:${it.w * CELL}px;height:${it.h * CELL}px"><span>${esc(it.label || ITEM_TYPES[it.type]?.label || '')}</span></div>`).join('');
     const tables = state.tableList.filter((t) => inRoom(t.pos, R)).map((t) =>
       `<div class="room-slot" style="left:${t.pos.x * CELL}px;top:${t.pos.y * CELL}px">${planTable(t, selPeople, searching, forPrint)}</div>`).join('');
@@ -1407,6 +1484,7 @@
         <button class="btn" data-add-table="vip">＋ โต๊ะ VIP</button>
         <button class="btn" data-add-table="regular">＋ โต๊ะ</button>
         <button class="btn" data-free="renumber" title="ไล่เลขจากแถวหน้าเวทีไปหลังห้อง ซ้ายไปขวา">เรียงเลขตอนนี้</button>
+        <button class="btn" data-free="venue" title="วางเวที พรมแดง VIP บาร์ ประตู และโต๊ะตามแปลนของโรงแรม">📐 ใช้แปลนห้องจริง</button>
         <button class="btn" data-free="reset" title="วางโต๊ะทั้งหมดใหม่ตามผังอัตโนมัติ">↺ เริ่มใหม่</button>
       </div>
       ${roomEditing ? `<div class="plan-bar palette">เพิ่มในห้อง: ${Object.entries(ITEM_TYPES).map(([k, v]) => `<button class="btn" data-add-item="${k}">＋ ${v.label}</button>`).join('')}
@@ -1730,6 +1808,7 @@
     if (fr) {
       if (fr.dataset.free === 'edit') { roomEditing = !roomEditing; return renderGrid(); }
       if (fr.dataset.free === 'renumber') { renumberByPosition(); persist(); render(); return toast('เรียงเลขโต๊ะตามตำแหน่งแล้ว'); }
+      if (fr.dataset.free === 'venue') return applyVenue();
       if (fr.dataset.free === 'reset') {
         if (!confirm('วางโต๊ะทั้งหมดใหม่ตามผังอัตโนมัติ? (สิ่งของในห้องที่เพิ่มไว้จะถูกแทนที่ · กดย้อนกลับได้)')) return;
         initFreeLayout(); persist(); render(); return;
