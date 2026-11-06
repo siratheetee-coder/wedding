@@ -984,6 +984,79 @@
       font-style: italic;
     }
     .polaroid-author::before { content: '— '; }
+    .polaroid { cursor: pointer; }
+    .polaroid-more {
+      display: none;
+      font-size: var(--fs-xs);
+      color: var(--accent);
+      margin: -4px 0 8px;
+      letter-spacing: 0.04em;
+    }
+    .polaroid.truncated .polaroid-more { display: block; }
+
+    /* Full-wish modal */
+    .wish-modal {
+      position: fixed;
+      inset: 0;
+      z-index: 600;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+      background: rgba(30, 20, 12, 0.55);
+      -webkit-backdrop-filter: blur(4px);
+      backdrop-filter: blur(4px);
+      opacity: 0;
+      visibility: hidden;
+      transition: opacity var(--dur-normal), visibility 0s linear var(--dur-normal);
+    }
+    .wish-modal.open {
+      opacity: 1;
+      visibility: visible;
+      transition: opacity var(--dur-normal), visibility 0s;
+    }
+    .wish-modal-card {
+      position: relative;
+      width: 100%;
+      max-width: 440px;
+      max-height: 80vh;
+      overflow-y: auto;
+      background: var(--white);
+      padding: 36px 28px 30px;
+      border-radius: 4px;
+      box-shadow: var(--shadow-lg);
+      transform: translateY(16px) scale(0.97);
+      transition: transform var(--dur-normal) var(--ease-out);
+    }
+    .wish-modal.open .wish-modal-card { transform: none; }
+    .wish-modal-message {
+      font-size: var(--fs-md);
+      line-height: 1.8;
+      color: var(--text);
+      white-space: pre-wrap;
+      overflow-wrap: anywhere;
+    }
+    .wish-modal-author {
+      margin-top: 18px;
+      text-align: right;
+      font-family: 'Playfair Display', 'Sarabun', serif;
+      font-style: italic;
+      color: var(--accent-ink);
+    }
+    .wish-modal-author::before { content: '— '; }
+    .wish-modal-close {
+      position: absolute;
+      top: 8px;
+      right: 10px;
+      width: 36px;
+      height: 36px;
+      border: none;
+      background: none;
+      font-size: 1.1rem;
+      color: var(--text-muted);
+      cursor: pointer;
+    }
+    body.wish-modal-lock { overflow: hidden; }
     @keyframes polaroidFloat {
       0%, 100% { transform: translate(var(--tx,0), calc(var(--ty,0px) - 3px)) rotate(var(--rot,0deg)); }
       50% { transform: translate(var(--tx,0), calc(var(--ty,0px) + 3px)) rotate(var(--rot,0deg)); }
@@ -2013,6 +2086,14 @@
 
 <div id="liveToast"></div>
 
+<div class="wish-modal" id="wishModal" role="dialog" aria-modal="true" aria-labelledby="wishModalAuthor">
+  <div class="wish-modal-card">
+    <button type="button" class="wish-modal-close" id="wishModalClose" aria-label="ปิด">✕</button>
+    <div class="wish-modal-message" id="wishModalMessage"></div>
+    <div class="wish-modal-author" id="wishModalAuthor"></div>
+  </div>
+</div>
+
 <!-- FOOTER -->
 <footer>
   <div class="footer-title">Madchimapon &amp; Sirathee</div>
@@ -2572,10 +2653,17 @@
           transform: translateY(24px) scale(0.9) rotate(${rot}deg);
         " data-idx="${i}">
           <div class="polaroid-message">${escapeHtml(m.message)}</div>
+          <div class="polaroid-more" data-th="อ่านต่อ…" data-en="Read more…">${currentLang === 'th' ? 'อ่านต่อ…' : 'Read more…'}</div>
           <div class="polaroid-author">${escapeHtml(m.name)}</div>
         </div>`;
       });
       board.innerHTML = cards.join('');
+      board.querySelectorAll('.polaroid').forEach(card => {
+        card.tabIndex = 0;
+        card.setAttribute('role', 'button');
+        const msg = card.querySelector('.polaroid-message');
+        if (msg.scrollHeight > msg.clientHeight + 1) card.classList.add('truncated');
+      });
       // Fade-in one by one with intersection
       const nodes = board.querySelectorAll('.polaroid');
       const io = new IntersectionObserver((entries) => {
@@ -2598,6 +2686,34 @@
     }
   }
   loadGuestbook();
+
+  const wishModal = document.getElementById('wishModal');
+  let wishModalReturn = null;
+  function openWish(card) {
+    document.getElementById('wishModalMessage').textContent = card.querySelector('.polaroid-message').textContent;
+    document.getElementById('wishModalAuthor').textContent = card.querySelector('.polaroid-author').textContent;
+    wishModalReturn = card;
+    wishModal.classList.add('open');
+    document.body.classList.add('wish-modal-lock');
+    document.getElementById('wishModalClose').focus();
+  }
+  function closeWish() {
+    if (!wishModal.classList.contains('open')) return;
+    wishModal.classList.remove('open');
+    document.body.classList.remove('wish-modal-lock');
+    if (wishModalReturn) wishModalReturn.focus();
+  }
+  document.getElementById('guestbookBoard').addEventListener('click', e => {
+    const card = e.target.closest('.polaroid');
+    if (card) openWish(card);
+  });
+  document.getElementById('guestbookBoard').addEventListener('keydown', e => {
+    const card = e.target.closest('.polaroid');
+    if (card && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); openWish(card); }
+  });
+  document.getElementById('wishModalClose').addEventListener('click', closeWish);
+  wishModal.addEventListener('click', e => { if (e.target === wishModal) closeWish(); });
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') closeWish(); });
 
   const giftCopy = document.getElementById('giftCopy');
   giftCopy.addEventListener('click', async () => {
