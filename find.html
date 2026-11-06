@@ -234,8 +234,9 @@
       : Array.from({ length: s.tableCount || 90 }, (_, i) => ({ id: i + 1, vip: false }));
     const vip = list.filter((t) => t.vip), reg = list.filter((t) => !t.vip);
     const label = {};
-    vip.forEach((t, i) => (label[t.id] = { short: `VIP ${i + 1}`, vip: true, name: t.name }));
-    reg.forEach((t, i) => (label[t.id] = { short: String(i + 1), vip: false, name: t.name }));
+    // A number set by hand in the planner (t.no) wins over the automatic one
+    vip.forEach((t, i) => (label[t.id] = { short: t.no ? (/vip/i.test(t.no) ? t.no : `VIP ${t.no}`) : `VIP ${i + 1}`, vip: true, name: t.name }));
+    reg.forEach((t, i) => (label[t.id] = { short: t.no || String(i + 1), vip: false, name: t.name }));
     const L = Object.assign({ perRow: 5, left: null }, s.layout);
     const leftN = Math.min(reg.length, L.left ?? Math.ceil(reg.length / 2));
     // Free-form room from the planner: tables keep their grid cell, plus room items

@@ -515,6 +515,7 @@
     <h2 id="tmTitle">โต๊ะ</h2>
     <p class="sub" id="tmSub"></p>
     <div class="row">
+      <div style="flex:1"><label>เลขโต๊ะ</label><input class="field" id="tmNo" maxlength="12" title="เว้นว่าง = เลขอัตโนมัติตามตำแหน่ง" /></div>
       <div style="flex:2"><label>ชื่อโต๊ะ (ไม่บังคับ)</label><input class="field" id="tmName" placeholder="เช่น โต๊ะครอบครัวเจ้าสาว" /></div>
       <div style="flex:1"><label>ที่นั่ง</label><input class="field" id="tmCap" type="number" min="1" /></div>
     </div>
@@ -724,8 +725,15 @@
     if (!t) return '?';
     return state.tableList.filter((x) => x.vip === t.vip).indexOf(t) + 1;
   }
-  const shortLabel = (id) => (tableById(id)?.vip ? `VIP ${numberOf(id)}` : String(numberOf(id)));
-  const labelOf = (id) => (tableById(id)?.vip ? `VIP ${numberOf(id)}` : `โต๊ะ ${numberOf(id)}`);
+  // A table can carry its own number (t.no, e.g. "12" or "A3"); otherwise it is
+  // numbered by position. A custom VIP number gets "VIP " in front unless it has it.
+  function shortLabel(id) {
+    const t = tableById(id);
+    if (t?.no) return t.vip && !/vip/i.test(t.no) ? `VIP ${t.no}` : t.no;
+    return t?.vip ? `VIP ${numberOf(id)}` : String(numberOf(id));
+  }
+  const labelOf = (id) => (tableById(id)?.vip || /vip/i.test(shortLabel(id)) ? shortLabel(id) : `โต๊ะ ${shortLabel(id)}`);
+  const autoLabel = (id) => (tableById(id)?.vip ? `VIP ${numberOf(id)}` : String(numberOf(id)));
   const orderOf = (id) => { const i = state.tableList.findIndex((t) => t.id === id); return i < 0 ? 1e6 : i; };
   const guestsAt = (n) => state.guests.filter((g) => g.table === n);
   const usedAt = (n) => guestsAt(n).reduce((s, g) => s + g.count, 0);
@@ -1055,7 +1063,12 @@
   const UNKNOWN_MARK = '⚠ ยังไม่ระบุจำนวน';
   const normName = (x) => x.replace(/\s*\(\d+\/\d+\)\s*$/, '').replace(/\s+/g, ' ').trim().toLowerCase();
   function planIssues() {
-    const issues = { over: [], unplaced: [], spread: [], few: [], dup: [], unknown: [], unseated: [], total: null };
+    const issues = { over: [], unplaced: [], dupNo: [], spread: [], few: [], dup: [], unknown: [], unseated: [], total: null };
+    // Two tables showing the same number (possible once numbers are set by hand)
+    const byNo = {};
+    state.tableList.forEach((t) => (byNo[shortLabel(t.id).toLowerCase()] ||= []).push(t.id));
+    Object.values(byNo).filter((ids) => ids.length > 1).forEach((ids) => ids.forEach((id) =>
+      issues.dupNo.push({ table: id, text: `${labelOf(id)}${nameOf(id) ? ' · ' + nameOf(id) : ''} (${usedAt(id)}/${capOf(id)} คน)` })));
     const reg = state.tableList.filter((t) => !t.vip);
     const L = layoutOf(), leftN = Math.min(reg.length, L.left ?? Math.ceil(reg.length / 2));
     const sideOf = (id) => {
@@ -1101,7 +1114,7 @@
     return issues;
   }
   function issueCount(i) {
-    return i.over.length + i.unplaced.length + i.spread.length + i.dup.length + i.unknown.length + i.unseated.length + (i.total ? 1 : 0);
+    return i.over.length + i.unplaced.length + i.dupNo.length + i.spread.length + i.dup.length + i.unknown.length + i.unseated.length + (i.total ? 1 : 0);
   }
   function updateCheckBadge() {
     const n = issueCount(planIssues());
@@ -1117,6 +1130,7 @@
     $('ckSub').textContent = n ? `พบ ${n} เรื่องที่ควรตรวจ — แตะรายการเพื่อไปแก้` : '';
     $('ckList').innerHTML = (i.total ? `<div class="ck-sec"><h3>ที่นั่งไม่พอ <span class="n">!</span></h3><p>${esc(i.total)}</p></div>` : '')
       + sec('โต๊ะเกินจำนวน', i.over)
+      + sec('เลขโต๊ะซ้ำกัน', i.dupNo, 'แขกจะสับสนว่าต้องนั่งโต๊ะไหน — แตะเพื่อเปิดโต๊ะแล้วแก้ช่อง "เลขโต๊ะ"')
       + sec('โต๊ะที่มีแขกแต่ยังไม่ได้วางในห้อง', i.unplaced, 'อยู่ในกล่อง "ยังไม่ได้วาง" ใต้ผังห้อง — ลากเข้าไปวางในห้อง หรือย้ายแขกไปโต๊ะอื่น')
       + sec('แขกยังไม่ระบุจำนวน', i.unknown, 'ใส่จำนวนคนให้ถูกต้องก่อนจัดโต๊ะ (ตอนนี้นับไว้คนละ 1)')
       + sec('แขกที่ยังไม่ได้จัดโต๊ะ', i.unseated)
@@ -1894,6 +1908,7 @@
       <button class="btn" data-ro="vip">${allVip ? 'ยกเลิก VIP' : 'ตั้งเป็น VIP'}</button>
       <button class="btn" data-ro="cap">ตั้งจำนวนที่นั่ง</button>
       <button class="btn" data-ro="name">ตั้งชื่อโต๊ะ</button>
+      <button class="btn" data-ro="no">ตั้งเลขโต๊ะ</button>
       <button class="btn btn-danger" data-ro="unseat">ล้างแขกออก</button>
       <button class="btn btn-danger" data-ro="delete">ลบโต๊ะ</button>
       <span class="sep"></span>${quick}<button class="btn" data-ro="clear">ล้างที่เลือก</button>`;
@@ -1926,6 +1941,17 @@
       sel.forEach((t) => (t.capacity = v === state.capacity ? undefined : v));
       persist();
       toast(`ตั้ง ${n} โต๊ะเป็นโต๊ะละ ${v} ที่แล้ว`);
+    } else if (act === 'no') {
+      // Running numbers in table order: "1" → 1, 2, 3…  "A1" → A1, A2…  blank → back to automatic
+      const raw = prompt(`เลขโต๊ะสำหรับ ${n} โต๊ะที่เลือก (เรียงตามลำดับโต๊ะ)\n• ใส่เลขเริ่มต้น เช่น "1" → 1, 2, 3… หรือ "A1" → A1, A2…\n• เว้นว่างเพื่อกลับไปใช้เลขอัตโนมัติ`, sel[0].no || '');
+      if (raw === null) return;
+      const v = raw.trim();
+      if (!v) { sel.forEach((t) => delete t.no); persist(); return toast(`${n} โต๊ะกลับไปใช้เลขอัตโนมัติแล้ว`); }
+      const nums = n > 1 && !/\d$/.test(v) ? Array.from({ length: n }, (_, i) => `${v}${i + 1}`) : numberedNames(v, n);
+      if (!confirmUniqueNumbers(nums, ids)) return;
+      sel.forEach((t, i) => (t.no = nums[i]));
+      persist();
+      toast(n > 1 ? `ตั้งเลข ${nums[0]} – ${nums[n - 1]} แล้ว` : `ตั้งเป็นเลข ${nums[0]} แล้ว`);
     } else if (act === 'name') {
       const raw = prompt(`ชื่อโต๊ะสำหรับ ${n} โต๊ะที่เลือก\n• ลงท้ายด้วยตัวเลขเพื่อเรียงเลขให้ เช่น "แขกพ่อ 1" → แขกพ่อ 1, แขกพ่อ 2, …\n• เว้นว่างเพื่อลบชื่อ`, n > 1 ? '' : nameOf(ids[0]));
       if (raw === null) return;
@@ -2029,7 +2055,7 @@
     if (act === 'back') reorderStep = 'pick';
     if (act === 'all') reorderSel = [...new Set([...reorderSel, ...state.tableList.filter((t) => tableMatches(t.id)).map((t) => t.id)])];
     if (act === 'empty') reorderSel = [...new Set([...reorderSel, ...state.tableList.filter((t) => !usedAt(t.id)).map((t) => t.id)])];
-    if (['vip', 'cap', 'name', 'unseat', 'delete'].includes(act)) bulkAction(act);
+    if (['vip', 'cap', 'name', 'no', 'unseat', 'delete'].includes(act)) bulkAction(act);
     render();
   });
   $('tableHint').addEventListener('change', (e) => {
@@ -2391,6 +2417,8 @@
     openTable = n;
     $('tmAdd').value = '';
     $('tmName').value = nameOf(n);
+    $('tmNo').value = tableById(n)?.no || '';
+    $('tmNo').placeholder = `อัตโนมัติ (${autoLabel(n)})`;
     $('tmCap').value = capOf(n);
     $('tmVip').checked = !!tableById(n)?.vip;
     renderTableModal();
@@ -2522,6 +2550,19 @@
     tableById(openTable).name = v;
     persist(); renderGrid();
   });
+  $('tmNo').addEventListener('change', () => {
+    const t = tableById(openTable), v = $('tmNo').value.trim();
+    if (v && !confirmUniqueNumbers([v], [t.id])) { $('tmNo').value = t.no || ''; return; }
+    if (v) t.no = v; else delete t.no;
+    persist(); render(); renderTableModal();
+    toast(v ? `ตั้งเป็น${labelOf(t.id)}แล้ว` : `กลับไปใช้เลขอัตโนมัติ (${labelOf(t.id)})`);
+  });
+  // Warn before giving two tables the same number
+  function confirmUniqueNumbers(nums, ids) {
+    const others = state.tableList.filter((t) => !ids.includes(t.id));
+    const clash = nums.filter((n) => others.some((t) => shortLabel(t.id).toLowerCase() === n.toLowerCase() || (t.vip && shortLabel(t.id).toLowerCase() === `vip ${n}`.toLowerCase())));
+    return !clash.length || confirm(`เลข ${clash.slice(0, 5).join(', ')}${clash.length > 5 ? ' …' : ''} มีโต๊ะอื่นใช้อยู่แล้ว — ใช้ซ้ำไหม?`);
+  }
   $('tmCap').addEventListener('change', () => {
     const v = Math.max(1, parseInt($('tmCap').value) || state.capacity);
     tableById(openTable).capacity = v === state.capacity ? undefined : v;
